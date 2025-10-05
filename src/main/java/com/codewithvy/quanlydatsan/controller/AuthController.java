@@ -52,7 +52,7 @@ public class AuthController {
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
             return ResponseEntity.badRequest().body("Error: Username is already taken!");
         }
-        if (userRepository.existsByUsername(signUpRequest.getPhone())) {
+        if (userRepository.existsByPhone(signUpRequest.getPhone())) {
             return ResponseEntity.badRequest().body("Error: Phone is already in use!");
         }
         // Create new user's account

@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "address")
@@ -24,5 +25,6 @@ public class Address {
     private String detailAddress;
 
     @OneToMany(mappedBy = "address", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore // tránh vòng lặp Address -> Venues -> Address
     private List<Venues> venues;
 }

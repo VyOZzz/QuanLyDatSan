@@ -1,5 +1,6 @@
 package com.codewithvy.quanlydatsan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -19,6 +20,7 @@ public class Court {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venues_id", nullable = false)
+    @JsonIgnore // tránh vòng lặp Venues -> Courts -> Venues
     private Venues venues;
 
     @OneToMany(mappedBy = "court", cascade = CascadeType.ALL, orphanRemoval = true)
