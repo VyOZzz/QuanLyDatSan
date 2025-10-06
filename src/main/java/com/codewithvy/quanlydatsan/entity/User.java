@@ -23,6 +23,8 @@ public class User {
     private String username;
     @Column(nullable = false)
     private String password;
+    @Column(nullable = true, unique = true) // tạm cho phép null để migrate, có thể đổi lại false sau khi cập nhật dữ liệu
+    private String email;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

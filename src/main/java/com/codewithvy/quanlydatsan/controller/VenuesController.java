@@ -1,51 +1,49 @@
 package com.codewithvy.quanlydatsan.controller;
 
-import com.codewithvy.quanlydatsan.entity.Venues;
-import com.codewithvy.quanlydatsan.repository.VenuesRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.codewithvy.quanlydatsan.dto.ApiResponse;
+import com.codewithvy.quanlydatsan.dto.VenuesDTO;
+import com.codewithvy.quanlydatsan.dto.VenuesRequest;
+import com.codewithvy.quanlydatsan.service.VenuesService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/venues")
 public class VenuesController {
-    @Autowired
-    private VenuesRepository venuesRepository;
+
+    private final VenuesService venuesService;
+
+    public VenuesController(VenuesService venuesService) {
+        this.venuesService = venuesService;
+    }
 
     @GetMapping
-    public List<Venues> getAllVenues() {
-        return venuesRepository.findAll();
+    public ResponseEntity<ApiResponse<List<VenuesDTO>>> getAllVenues() {
+        return ResponseEntity.ok(ApiResponse.ok(venuesService.getAll(), "List venues"));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Venues> getVenuesById(@PathVariable Long id) {
-        Optional<Venues> venues = venuesRepository.findById(id);
-        return venues.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.<Venues>notFound().build());
+    public ResponseEntity<ApiResponse<VenuesDTO>> getVenuesById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(venuesService.getById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<Venues> createVenues(@RequestBody Venues venues) {
-        Venues saved = venuesRepository.save(venues);
-        return ResponseEntity.ok(saved);
+    public ResponseEntity<ApiResponse<VenuesDTO>> createVenues(@RequestBody VenuesRequest request) {
+        VenuesDTO created = venuesService.create(request);
+        return ResponseEntity.ok(ApiResponse.ok(created, "Created"));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Venues> updateVenues(@PathVariable Long id, @RequestBody Venues venuesDetails) {
-        return venuesRepository.findById(id).map(venues -> {
-            venues.setName(venuesDetails.getName());
-            venues.setNumberOfCourt(venuesDetails.getNumberOfCourt());
-            venues.setAddress(venuesDetails.getAddress());
-            return ResponseEntity.ok(venuesRepository.save(venues));
-        }).orElseGet(() -> ResponseEntity.<Venues>notFound().build());
+    public ResponseEntity<ApiResponse<VenuesDTO>> updateVenues(@PathVariable Long id, @RequestBody VenuesRequest request) {
+        VenuesDTO updated = venuesService.update(id, request);
+        return ResponseEntity.ok(ApiResponse.ok(updated, "Updated"));
     }
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteVenues(@PathVariable Long id) {
-        if (!venuesRepository.existsById(id)) {
-            return ResponseEntity.<Void>notFound().build();
-        }
-        venuesRepository.deleteById(id);
-        return ResponseEntity.<Void>noContent().build();
+    public ResponseEntity<ApiResponse<Void>> deleteVenues(@PathVariable Long id) {
+        venuesService.delete(id);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Deleted"));
     }
 }
