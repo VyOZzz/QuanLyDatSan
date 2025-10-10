@@ -8,6 +8,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.codewithvy.quanlydatsan.entity.Role;
 import com.codewithvy.quanlydatsan.repository.RoleRepository;
 
+/**
+ * Điểm vào chính của ứng dụng Spring Boot (hàm main chạy app).
+ * Có kèm CommandLineRunner để seed một số role mặc định vào DB nếu chưa có.
+ */
 @SpringBootApplication
 public class QuanLyDatSanApplication {
 
@@ -15,6 +19,9 @@ public class QuanLyDatSanApplication {
         SpringApplication.run(QuanLyDatSanApplication.class, args);
     }
 
+    /**
+     * Seed các role mặc định (ROLE_USER, ROLE_ADMIN) khi app khởi động lần đầu.
+     */
     @Bean
     public CommandLineRunner initRoles(@Autowired RoleRepository roleRepository) {
         return args -> {

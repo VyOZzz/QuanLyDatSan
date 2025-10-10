@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Entity lưu quyền (role) của người dùng, ví dụ: ROLE_USER, ROLE_OWNER, ROLE_ADMIN.
+ */
 @Entity
 @Table(name = "role")
 @Data
@@ -13,8 +16,8 @@ import lombok.NoArgsConstructor;
 public class Role {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Integer id; // id role
 
     @Column(nullable = false, unique = true)
-    private String name;
+    private String name; // tên role duy nhất (ROLE_*)
 }

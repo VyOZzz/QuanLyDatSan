@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Entity lưu thông tin người dùng hệ thống.
+ */
 @Entity
 @Table(name = "user")
 @Data
@@ -13,18 +16,18 @@ import lombok.NoArgsConstructor;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id; // định danh người dùng
 
     @Column(nullable = false)
-    private String fullname;
+    private String fullname; // họ tên hiển thị
     @Column(nullable = false, unique = true)
-    private String phone;
+    private String phone; // số điện thoại duy nhất
     @Column(nullable = false, unique = true)
-    private String username;
+    private String username; // tên đăng nhập duy nhất
     @Column(nullable = false)
-    private String password;
-    @Column(nullable = true, unique = true) // tạm cho phép null để migrate, có thể đổi lại false sau khi cập nhật dữ liệu
-    private String email;
+    private String password; // mật khẩu đã mã hoá (BCrypt)
+    @Column(nullable = true, unique = true) // tạm cho phép null để migrate, có thể đổi lại false sau
+    private String email; // email duy nhất
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -32,5 +35,5 @@ public class User {
         joinColumns = @JoinColumn(name = "user_id"),
         inverseJoinColumns = @JoinColumn(name = "role_id")
     )
-    private java.util.Set<Role> roles = new java.util.HashSet<>();
+    private java.util.Set<Role> roles = new java.util.HashSet<>(); // danh sách quyền (ROLE_*) của user
 }

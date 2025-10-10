@@ -7,6 +7,10 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+/**
+ * Entity biểu diễn một lượt đặt sân (booking) với khung giờ và ngày cụ thể.
+ * Gắn với một Court và một Payment tương ứng.
+ */
 @Entity
 @Table(name = "booked_court")
 @Data
@@ -15,20 +19,20 @@ import java.time.LocalTime;
 public class BookedCourt {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long bookedCourtId;
+    private Long bookedCourtId; // id booking
 
     @Column(nullable = false)
-    private LocalTime timeStart;
+    private LocalTime timeStart; // giờ bắt đầu
     @Column(nullable = false)
-    private LocalTime timeEnd;
+    private LocalTime timeEnd;   // giờ kết thúc
     @Column(nullable = false)
-    private LocalDate dayBooked;
+    private LocalDate dayBooked; // ngày đặt
 
     @OneToOne(optional = false)
     @JoinColumn(name = "payment_id", nullable = false)
-    private Payment payment;
+    private Payment payment; // thanh toán gắn với booking
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "court_id", nullable = false)
-    private Court court;
+    private Court court; // sân được đặt
 }
