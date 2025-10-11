@@ -1,8 +1,8 @@
 package com.codewithvy.quanlydatsan.service;
 
-import com.codewithvy.quanlydatsan.dto.VenuesDTO;
-import com.codewithvy.quanlydatsan.dto.VenuesRequest;
+import com.codewithvy.quanlydatsan.dto.*;
 import com.codewithvy.quanlydatsan.entity.Address;
+import com.codewithvy.quanlydatsan.entity.Court;
 import com.codewithvy.quanlydatsan.entity.Venues;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
 import com.codewithvy.quanlydatsan.mapper.VenuesMapper;
@@ -29,9 +29,39 @@ public class VenuesService {
         return venuesRepository.findAll().stream().map(VenuesMapper::toDto).collect(Collectors.toList());
     }
 
-    public VenuesDTO getById(Long id){
-        Venues v = venuesRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Venues not found with id="+id));
-        return VenuesMapper.toDto(v);
+    // New: filter by province/city if provided
+    public List<VenuesDTO> getAll(String provinceOrCity){
+        List<Venues> list = (provinceOrCity == null || provinceOrCity.isBlank())
+                ? venuesRepository.findAll()
+                : venuesRepository.searchByProvinceOrCity(provinceOrCity);
+        return list.stream().map(VenuesMapper::toDto).collect(Collectors.toList());
+    }
+
+    // Change: return detail DTO including courts
+    public VenuesDetailDTO getById(Long id){
+        Venues v = venuesRepository.findWithCourtsById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Venues not found with id="+id));
+        Address address = v.getAddress();
+        AddressDTO addressDTO = address == null ? null : AddressDTO.builder()
+                .id(address.getId())
+                .provinceOrCity(address.getProvinceOrCity())
+                .district(address.getDistrict())
+                .detailAddress(address.getDetailAddress())
+                .build();
+        List<CourtDTO> courts = v.getCourts() == null ? java.util.List.of() : v.getCourts().stream()
+                .map(this::toCourtDto)
+                .collect(Collectors.toList());
+        return VenuesDetailDTO.builder()
+                .id(v.getId())
+                .name(v.getName())
+                .numberOfCourt(v.getNumberOfCourt())
+                .address(addressDTO)
+                .courts(courts)
+                .build();
+    }
+
+    private CourtDTO toCourtDto(Court c){
+        return new CourtDTO(c.getId(), c.isBooked());
     }
 
     @Transactional
@@ -71,4 +101,3 @@ public class VenuesService {
         venuesRepository.deleteById(id);
     }
 }
-

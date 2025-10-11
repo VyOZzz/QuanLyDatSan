@@ -28,6 +28,12 @@ public class QuanLyDatSanApplication {
                 adminRole.setName("ROLE_ADMIN");
                 roleRepository.save(adminRole);
             }
+            // Thêm logic tạo ROLE_OWNER
+            if (roleRepository.findByName("ROLE_OWNER").isEmpty()) {
+                Role ownerRole = new Role();
+                ownerRole.setName("ROLE_OWNER");
+                roleRepository.save(ownerRole);
+            }
         };
     }
 }
