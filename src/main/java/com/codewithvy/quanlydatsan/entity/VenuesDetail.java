@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 /**
  * Entity lưu thông tin chi tiết bổ sung cho Venues (tiêu đề, mô tả, danh sách ảnh).
@@ -31,5 +32,6 @@ public class VenuesDetail {
 
     @OneToOne(optional = false)
     @JoinColumn(name = "venues_id", unique = true, nullable = false)
+    @JsonBackReference // back reference for one-to-one with Venues
     private Venues venues; // liên kết 1-1 tới Venues
 }

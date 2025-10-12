@@ -73,6 +73,8 @@ public class WebSecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // MỞ TẤT CẢ API CHO TEST TẠM THỜI
                 .requestMatchers("/api/**").permitAll()
+                // Cho phép truy cập Swagger/OpenAPI UI và docs
+                .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**", "/swagger-ui.html", "/swagger-ui/index.html").permitAll()
                 .requestMatchers(HttpMethod.GET, "/hello").permitAll()
                 .requestMatchers("/hello").permitAll()
                 .anyRequest().authenticated()
