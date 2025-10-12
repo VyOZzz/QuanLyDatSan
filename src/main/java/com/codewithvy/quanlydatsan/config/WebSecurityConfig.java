@@ -49,9 +49,15 @@ public class WebSecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(List.of("http://localhost:3000","http://localhost:5173","http://localhost:4200","*"));
+        // Sử dụng setAllowedOriginPatterns để cho phép origin động (ví dụ khi bạn dùng ngrok thể hiện một hostname ngẫu nhiên)
+        // và tránh xung đột khi allowCredentials = true cùng với wildcard.
+        cfg.setAllowedOriginPatterns(List.of("*"));
+        // Cho phép đầy đủ phương thức cần thiết cho API
         cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept"));
+        // Cho phép client gửi header Authorization
+        cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","Origin","X-Requested-With"));
+        // Expose header (nếu client cần đọc các header trả về)
+        cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
@@ -65,9 +71,8 @@ public class WebSecurityConfig {
             .exceptionHandling(e -> e.authenticationEntryPoint(unauthorizedHandler))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/venues/**").permitAll() // mở GET venues để bạn test, có thể bỏ sau
-                .requestMatchers(HttpMethod.GET, "/api/addresses/**").permitAll()
+                // MỞ TẤT CẢ API CHO TEST TẠM THỜI
+                .requestMatchers("/api/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/hello").permitAll()
                 .requestMatchers("/hello").permitAll()
                 .anyRequest().authenticated()
