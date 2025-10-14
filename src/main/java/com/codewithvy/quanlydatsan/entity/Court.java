@@ -1,6 +1,6 @@
 package com.codewithvy.quanlydatsan.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -23,7 +23,7 @@ public class Court {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venues_id", nullable = false)
-    @JsonIgnore // tránh vòng lặp Venues -> Courts -> Venues khi serialize JSON
+    @JsonBackReference // back reference to avoid cyclic serialization (child -> parent)
     private Venues venues; // venues mà sân này trực thuộc
 
     // Xoá relation tới BookedCourt vì entity này đã bị loại khỏi dự án.

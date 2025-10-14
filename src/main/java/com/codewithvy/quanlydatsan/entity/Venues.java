@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 /**
  * Entity biểu diễn địa điểm (Venues) quản lý nhiều sân (Court), gắn một địa chỉ và có chi tiết.
@@ -26,6 +27,7 @@ public class Venues {
     private String name; // tên địa điểm
 
     @OneToMany(mappedBy = "venues", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference // parent reference to allow serializing courts without cycle
     private List<Court> courts; // danh sách sân trực thuộc venues
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -33,5 +35,6 @@ public class Venues {
     private Address address; // địa chỉ nơi venues tọa lạc
 
     @OneToOne(mappedBy = "venues", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference // parent side of 1-1 to allow VenuesDetail to use back reference
     private VenuesDetail venuesDetail; // thông tin chi tiết (mô tả, hình ảnh)
 }

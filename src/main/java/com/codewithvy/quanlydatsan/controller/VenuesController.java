@@ -24,6 +24,20 @@ public class VenuesController {
         return ResponseEntity.ok(ApiResponse.ok(venuesService.getAll(), "List venues"));
     }
 
+    /**
+     * Tìm kiếm theo tên và/hoặc địa chỉ. Tham số đều là tuỳ chọn.
+     * VD: /api/venues/search?name=abc&province=Hanoi
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<VenuesDTO>>> searchVenues(
+            @RequestParam(name = "name", required = false) String name,
+            @RequestParam(name = "province", required = false) String province,
+            @RequestParam(name = "district", required = false) String district,
+            @RequestParam(name = "detail", required = false) String detail) {
+        List<VenuesDTO> results = venuesService.search(name, province, district, detail);
+        return ResponseEntity.ok(ApiResponse.ok(results, "Search results"));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<VenuesDTO>> getVenuesById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(venuesService.getById(id)));

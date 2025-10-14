@@ -97,6 +97,12 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Springdoc OpenAPI UI (Swagger) - starter for Spring Web MVC (Spring Boot 3 / Jakarta) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.1.0</version>
+        </dependency>
     </dependencies>
 
     <build>
