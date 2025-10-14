@@ -34,6 +34,24 @@ public class VenuesService {
         return VenuesMapper.toDto(v);
     }
 
+    /**
+     * Tìm kiếm venues theo tên và/hoặc địa chỉ (province/district/detail). Nếu tham số null/blank sẽ bỏ qua điều kiện.
+     */
+    public List<VenuesDTO> search(String name, String province, String district, String detail) {
+        String n = normalize(name);
+        String p = normalize(province);
+        String d = normalize(district);
+        String de = normalize(detail);
+        return venuesRepository.search(n, p, d, de)
+                .stream().map(VenuesMapper::toDto).collect(Collectors.toList());
+    }
+
+    private String normalize(String s){
+        if(s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
+
     @Transactional
     public VenuesDTO create(VenuesRequest request){
         if(request.getAddressId() == null){
@@ -71,4 +89,3 @@ public class VenuesService {
         venuesRepository.deleteById(id);
     }
 }
-
