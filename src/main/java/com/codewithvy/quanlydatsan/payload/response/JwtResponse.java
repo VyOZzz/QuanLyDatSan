@@ -8,7 +8,6 @@ import java.util.List;
 public class JwtResponse {
     private String jwtToken;
     private Long id;
-    private String username;
+    private String phone;
     private List<String> roles;
 }
-

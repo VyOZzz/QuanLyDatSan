@@ -1,5 +1,6 @@
 package com.codewithvy.quanlydatsan.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -28,6 +29,7 @@ public class PriceRules {
     private Long pricePerHour;   // đơn giá theo giờ trong khung này
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "court_id", nullable = false)
-    private Court court; // sân mà rule này áp dụng
+    @JoinColumn(name = "venues_id", nullable = false)
+    @JsonBackReference("venues-pricerules")
+    private Venues venues; // sân mà rule này áp dụng
 }

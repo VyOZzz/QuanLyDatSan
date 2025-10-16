@@ -14,6 +14,9 @@ import com.codewithvy.quanlydatsan.security.UserDetailsImpl;
 import com.codewithvy.quanlydatsan.security.jwt.JwtUtils;
 import com.codewithvy.quanlydatsan.service.EmailService;
 import com.codewithvy.quanlydatsan.service.PasswordResetService;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -30,6 +33,8 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -37,9 +42,7 @@ public class AuthController {
     private final JwtUtils jwtUtils;
     private final PasswordResetService passwordResetService;
     private final EmailService emailService;
-    private final AddressRepository addressRepository;
-    private final VenuesRepository venuesRepository;
-    private final VenuesDetailRepository venuesDetailRepository;
+
 
     public AuthController(AuthenticationManager authenticationManager,
                           UserRepository userRepository,
@@ -47,10 +50,7 @@ public class AuthController {
                           PasswordEncoder encoder,
                           JwtUtils jwtUtils,
                           PasswordResetService passwordResetService,
-                          EmailService emailService,
-                          AddressRepository addressRepository,
-                          VenuesRepository venuesRepository,
-                          VenuesDetailRepository venuesDetailRepository) {
+                          EmailService emailService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -58,100 +58,51 @@ public class AuthController {
         this.jwtUtils = jwtUtils;
         this.passwordResetService = passwordResetService;
         this.emailService = emailService;
-        this.addressRepository = addressRepository;
-        this.venuesRepository = venuesRepository;
-        this.venuesDetailRepository = venuesDetailRepository;
     }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<JwtResponse>> authenticateUser(@RequestBody LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+                new UsernamePasswordAuthenticationToken(loginRequest.getPhone(), loginRequest.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(org.springframework.security.core.GrantedAuthority::getAuthority)
                 .collect(Collectors.toList());
-        JwtResponse jwtResp = new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(), roles);
+        JwtResponse jwtResp = new JwtResponse(jwt, userDetails.getId(), userDetails.getPhone(), roles);
         return ResponseEntity.ok(ApiResponse.ok(jwtResp, "Login success"));
     }
 
     @PostMapping("/register")
     @Transactional
-    public ResponseEntity<ApiResponse<String>> registerUser(@RequestBody SignupRequest signUpRequest) {
-        if (userRepository.existsByUsername(signUpRequest.getUsername())) {
-            return ResponseEntity.badRequest().body(ApiResponse.fail("Username is already taken"));
+    public ResponseEntity<ApiResponse<String>> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
+        logger.info("Register request received: {}", signUpRequest);
+        if (!signUpRequest.getPassword().equals(signUpRequest.getConfirmPassword())) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail("Passwords do not match"));
         }
         if (userRepository.existsByPhone(signUpRequest.getPhone())) {
             return ResponseEntity.badRequest().body(ApiResponse.fail("Phone is already in use"));
         }
-        if (signUpRequest.getEmail() == null || signUpRequest.getEmail().isBlank()) {
-            return ResponseEntity.badRequest().body(ApiResponse.fail("Email is required"));
-        }
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
             return ResponseEntity.badRequest().body(ApiResponse.fail("Email is already in use"));
         }
+
         User user = new User();
         user.setFullname(signUpRequest.getFullname());
         user.setPhone(signUpRequest.getPhone());
-        user.setUsername(signUpRequest.getUsername());
         user.setPassword(encoder.encode(signUpRequest.getPassword()));
         user.setEmail(signUpRequest.getEmail());
 
-        Set<String> strRoles = signUpRequest.getRoles();
         Set<Role> roles = new HashSet<>();
+        String roleName = "OWNER".equalsIgnoreCase(signUpRequest.getAccountType()) ? "ROLE_OWNER" : "ROLE_USER";
 
-        boolean isOwner = false;
-        if (signUpRequest.getAccountType() != null && signUpRequest.getAccountType().equalsIgnoreCase("OWNER")) {
-            isOwner = true;
-        }
-
-        if (strRoles == null || strRoles.isEmpty()) {
-            String defaultRoleName = isOwner ? "ROLE_OWNER" : "ROLE_USER";
-            Role defaultRole = roleRepository.findByName(defaultRoleName)
-                    .orElseThrow(() -> new RoleNotFoundException(defaultRoleName + " not found"));
-            roles.add(defaultRole);
-        } else {
-            for (String roleName : strRoles) { // replaced lambda to allow mutation logic
-                Role foundRole = roleRepository.findByName(roleName)
-                        .orElseThrow(() -> new RoleNotFoundException(roleName + " not found"));
-                roles.add(foundRole);
-                if ("ROLE_OWNER".equalsIgnoreCase(roleName)) {
-                    isOwner = true; // safe mutation in loop
-                }
-            }
-        }
+        Role userRole = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RoleNotFoundException(roleName + " not found"));
+        roles.add(userRole);
         user.setRoles(roles);
+
         userRepository.save(user);
-
-        // If owner, create venues data immediately (optional logic)
-        if (isOwner) {
-            // Validate required venue fields
-            if (signUpRequest.getVenueName() == null || signUpRequest.getVenueProvinceOrCity() == null ||
-                signUpRequest.getVenueDistrict() == null || signUpRequest.getVenueDetailAddress() == null) {
-                throw new ResourceNotFoundException("Missing venue address fields for OWNER account");
-            }
-            Address address = new Address();
-            address.setProvinceOrCity(signUpRequest.getVenueProvinceOrCity());
-            address.setDistrict(signUpRequest.getVenueDistrict());
-            address.setDetailAddress(signUpRequest.getVenueDetailAddress());
-            addressRepository.save(address);
-
-            Venues venues = new Venues();
-            venues.setName(signUpRequest.getVenueName());
-            venues.setNumberOfCourt(signUpRequest.getVenueNumberOfCourt() == null ? 0 : signUpRequest.getVenueNumberOfCourt());
-            venues.setAddress(address);
-            venuesRepository.save(venues);
-
-            if (signUpRequest.getVenueTitle() != null && signUpRequest.getVenueDescription() != null) {
-                VenuesDetail detail = new VenuesDetail();
-                detail.setTitle(signUpRequest.getVenueTitle());
-                detail.setDescription(signUpRequest.getVenueDescription());
-                detail.setVenues(venues);
-                venuesDetailRepository.save(detail);
-            }
-        }
 
         return ResponseEntity.ok(ApiResponse.ok("User registered successfully", "Registered"));
     }

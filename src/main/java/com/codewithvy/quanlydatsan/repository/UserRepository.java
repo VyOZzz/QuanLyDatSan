@@ -8,10 +8,8 @@ import java.util.Optional;
  * Repository cho User: kế thừa CRUD mặc định và bổ sung truy vấn tìm/kiểm tra trùng.
  */
 public interface UserRepository extends JpaRepository<User, Long> {
-    /** Tìm user theo username. */
-    Optional<User> findByUsername(String username);
-    /** Kiểm tra username đã tồn tại chưa. */
-    boolean existsByUsername(String username);
+    /** Tìm user theo số điện thoại. */
+    Optional<User> findByPhone(String phone);
     /** Kiểm tra số điện thoại đã tồn tại chưa. */
     boolean existsByPhone(String phone);
     /** Tìm user theo email. */

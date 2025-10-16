@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
@@ -37,4 +39,8 @@ public class Venues {
     @OneToOne(mappedBy = "venues", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference // parent side of 1-1 to allow VenuesDetail to use back reference
     private VenuesDetail venuesDetail; // thông tin chi tiết (mô tả, hình ảnh)
+
+    @OneToMany(mappedBy = "venues", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference("venues-pricerules") // Đặt tên khác để tránh xung đột
+    private List<PriceRules> priceRules = new ArrayList<>();
 }

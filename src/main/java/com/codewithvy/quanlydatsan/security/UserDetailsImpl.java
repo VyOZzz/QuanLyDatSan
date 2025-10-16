@@ -14,13 +14,13 @@ import java.util.stream.Collectors;
  */
 public class UserDetailsImpl implements UserDetails {
     private Long id; // id người dùng trong hệ thống
-    private String username; // tên đăng nhập
+    private String phone; // SĐT người dùng, dùng thay username
     private String password; // mật khẩu đã mã hoá
     private Collection<? extends GrantedAuthority> authorities; // danh sách quyền (ROLE_*)
 
-    public UserDetailsImpl(Long id, String username, String password, Collection<? extends GrantedAuthority> authorities) {
+    public UserDetailsImpl(Long id, String phone, String password, Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
-        this.username = username;
+        this.phone = phone;
         this.password = password;
         this.authorities = authorities;
     }
@@ -34,7 +34,7 @@ public class UserDetailsImpl implements UserDetails {
                 .collect(Collectors.toList());
         return new UserDetailsImpl(
                 user.getId(),
-                user.getUsername(),
+                user.getPhone(),
                 user.getPassword(),
                 authorities
         );
@@ -44,10 +44,16 @@ public class UserDetailsImpl implements UserDetails {
     public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
     @Override
     public String getPassword() { return password; }
+
+    /**
+     * Spring Security sẽ dùng giá trị này để xác thực, nên ta trả về phone.
+     */
     @Override
-    public String getUsername() { return username; }
+    public String getUsername() { return phone; }
 
     public Long getId() { return id; }
+
+    public String getPhone() { return phone; }
 
     @Override
     public boolean isAccountNonExpired() { return true; }

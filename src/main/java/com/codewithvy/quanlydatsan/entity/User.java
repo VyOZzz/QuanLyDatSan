@@ -22,8 +22,6 @@ public class User {
     private String fullname; // họ tên hiển thị
     @Column(nullable = false, unique = true)
     private String phone; // số điện thoại duy nhất
-    @Column(nullable = false, unique = true)
-    private String username; // tên đăng nhập duy nhất
     @Column(nullable = false)
     private String password; // mật khẩu đã mã hoá (BCrypt)
     @Column(nullable = true, unique = true) // tạm cho phép null để migrate, có thể đổi lại false sau
