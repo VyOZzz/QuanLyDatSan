@@ -71,12 +71,15 @@ public class WebSecurityConfig {
             .exceptionHandling(e -> e.authenticationEntryPoint(unauthorizedHandler))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // MỞ TẤT CẢ API CHO TEST TẠM THỜI
-                .requestMatchers("/api/**").permitAll()
+                // Mở các API công khai
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/venues/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/courts/**").permitAll()
                 // Cho phép truy cập Swagger/OpenAPI UI và docs
                 .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**", "/swagger-ui.html", "/swagger-ui/index.html").permitAll()
                 .requestMatchers(HttpMethod.GET, "/hello").permitAll()
                 .requestMatchers("/hello").permitAll()
+                // Tất cả các request khác cần xác thực
                 .anyRequest().authenticated()
             );
         http.authenticationProvider(authenticationProvider());

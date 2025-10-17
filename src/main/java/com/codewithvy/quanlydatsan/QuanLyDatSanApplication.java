@@ -20,7 +20,7 @@ public class QuanLyDatSanApplication {
     }
 
     /**
-     * Seed các role mặc định (ROLE_USER, ROLE_ADMIN) khi app khởi động lần đầu.
+     * Seed các role mặc định (ROLE_USER, ROLE_OWNER, ROLE_ADMIN) khi app khởi động lần đầu.
      */
     @Bean
     public CommandLineRunner initRoles(@Autowired RoleRepository roleRepository) {
@@ -29,6 +29,12 @@ public class QuanLyDatSanApplication {
                 Role userRole = new Role();
                 userRole.setName("ROLE_USER");
                 roleRepository.save(userRole);
+            }
+            // Seed ROLE_OWNER để phục vụ đăng ký tài khoản chủ sân
+            if (roleRepository.findByName("ROLE_OWNER").isEmpty()) {
+                Role ownerRole = new Role();
+                ownerRole.setName("ROLE_OWNER");
+                roleRepository.save(ownerRole);
             }
             if (roleRepository.findByName("ROLE_ADMIN").isEmpty()) {
                 Role adminRole = new Role();
