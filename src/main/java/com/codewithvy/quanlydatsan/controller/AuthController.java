@@ -93,6 +93,7 @@ public class AuthController {
         user.setPhone(signUpRequest.getPhone());
         user.setPassword(encoder.encode(signUpRequest.getPassword()));
         user.setEmail(signUpRequest.getEmail());
+        user.setUsername(signUpRequest.getEmail()); // dùng email làm username
 
         Set<Role> roles = new HashSet<>();
         String roleName = "OWNER".equalsIgnoreCase(signUpRequest.getAccountType()) ? "ROLE_OWNER" : "ROLE_USER";

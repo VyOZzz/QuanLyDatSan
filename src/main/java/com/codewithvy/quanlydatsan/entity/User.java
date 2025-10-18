@@ -18,6 +18,8 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // định danh người dùng
 
+    @Column(unique = true)
+    private String username; // tên đăng nhập duy nhất
     @Column(nullable = false)
     private String fullname; // họ tên hiển thị
     @Column(nullable = false, unique = true)
