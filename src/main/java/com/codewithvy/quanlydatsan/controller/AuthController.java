@@ -62,16 +62,34 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<JwtResponse>> authenticateUser(@RequestBody LoginRequest loginRequest) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getPhone(), loginRequest.getPassword()));
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
-                .collect(Collectors.toList());
-        JwtResponse jwtResp = new JwtResponse(jwt, userDetails.getId(), userDetails.getPhone(), roles);
-        return ResponseEntity.ok(ApiResponse.ok(jwtResp, "Login success"));
+        try {
+            // Kiểm tra user có tồn tại không trước
+            User existingUser = userRepository.findByPhone(loginRequest.getPhone())
+                    .orElse(null);
+
+            if (existingUser == null) {
+                return ResponseEntity.status(401)
+                        .body(ApiResponse.fail("Tài khoản không tồn tại. Vui lòng đăng ký trước khi đăng nhập"));
+            }
+
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getPhone(), loginRequest.getPassword()));
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtUtils.generateJwtToken(authentication);
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            List<String> roles = userDetails.getAuthorities().stream()
+                    .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                    .collect(Collectors.toList());
+            JwtResponse jwtResp = new JwtResponse(jwt, userDetails.getId(), userDetails.getPhone(), roles);
+            return ResponseEntity.ok(ApiResponse.ok(jwtResp, "Login success"));
+        } catch (org.springframework.security.authentication.BadCredentialsException ex) {
+            return ResponseEntity.status(401)
+                    .body(ApiResponse.fail("Số điện thoại hoặc mật khẩu không đúng"));
+        } catch (Exception ex) {
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.fail("Lỗi đăng nhập: " + ex.getMessage()));
+        }
     }
 
     @PostMapping("/register")
@@ -93,13 +111,12 @@ public class AuthController {
         user.setPhone(signUpRequest.getPhone());
         user.setPassword(encoder.encode(signUpRequest.getPassword()));
         user.setEmail(signUpRequest.getEmail());
-        user.setUsername(signUpRequest.getEmail()); // dùng email làm username
+        // Bỏ setUsername vì đã xóa field username
 
+        // MẶC ĐỊNH TẤT CẢ USER MỚI ĐỀU LÀ ROLE_USER
         Set<Role> roles = new HashSet<>();
-        String roleName = "OWNER".equalsIgnoreCase(signUpRequest.getAccountType()) ? "ROLE_OWNER" : "ROLE_USER";
-
-        Role userRole = roleRepository.findByName(roleName)
-                .orElseThrow(() -> new RoleNotFoundException(roleName + " not found"));
+        Role userRole = roleRepository.findByName("ROLE_USER")
+                .orElseThrow(() -> new RoleNotFoundException("ROLE_USER not found"));
         roles.add(userRole);
         user.setRoles(roles);
 

@@ -28,7 +28,4 @@ public class SignupRequest {
     @NotBlank(message = "Confirm password is required")
     private String confirmPassword;
 
-    @NotBlank(message = "Account type is required")
-    @Pattern(regexp = "(?i)^(USER|OWNER)$", message = "accountType must be USER or OWNER")
-    private String accountType;
 }

@@ -1,5 +1,6 @@
 package com.codewithvy.quanlydatsan.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,17 +19,16 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // định danh người dùng
 
-    @Column(unique = true)
-    private String username; // tên đăng nhập duy nhất
+
     @Column(nullable = false)
     private String fullname; // họ tên hiển thị
     @Column(nullable = false, unique = true)
-    private String phone; // số điện thoại duy nhất
+    private String phone; // số điện thoại duy nhất, dùng để login
     @Column(nullable = false)
+    @JsonIgnore // Không trả password về client
     private String password; // mật khẩu đã mã hoá (BCrypt)
-    @Column(nullable = true, unique = true) // tạm cho phép null để migrate, có thể đổi lại false sau
-    private String email; // email duy nhất
-
+    @Column(nullable = false, unique = true)
+    private String email; // email duy nhất, dùng cho forgot password
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "user_roles",
