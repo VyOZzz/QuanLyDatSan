@@ -36,4 +36,14 @@ public class User {
         inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private java.util.Set<Role> roles = new java.util.HashSet<>(); // danh sách quyền (ROLE_*) của user
+
+    // Thông tin tài khoản ngân hàng (dành cho chủ sân)
+    @Column
+    private String bankName;           // Tên ngân hàng (VD: Vietcombank, Techcombank)
+
+    @Column
+    private String bankAccountNumber;  // Số tài khoản
+
+    @Column
+    private String bankAccountName;    // Tên chủ tài khoản
 }

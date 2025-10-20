@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class BookingResponse {
     private Long id;
     private Long userId;
+    private String userName;
     private Long courtId;
     private String courtName;
     private String venuesName;
@@ -18,4 +19,10 @@ public class BookingResponse {
     private LocalDateTime endTime;
     private Double totalPrice;
     private BookingStatus status;
+    private LocalDateTime expireTime;
+    private Boolean paymentProofUploaded;
+    private String paymentProofUrl;
+    private LocalDateTime paymentProofUploadedAt;
+    private String rejectionReason;
+    private OwnerBankInfoDTO ownerBankInfo; // Thông tin TK chủ sân
 }

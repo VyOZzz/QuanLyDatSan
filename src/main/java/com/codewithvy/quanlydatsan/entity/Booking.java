@@ -36,5 +36,22 @@ public class Booking {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BookingStatus status;
-}
 
+    // Thời gian hết hạn thanh toán
+    @Column(nullable = false)
+    private LocalDateTime expireTime;
+
+    // Thông tin chứng minh chuyển khoản
+    @Column
+    private Boolean paymentProofUploaded = false;
+
+    @Column
+    private String paymentProofUrl;
+
+    @Column
+    private LocalDateTime paymentProofUploadedAt;
+
+    // Lý do từ chối (nếu có)
+    @Column(length = 500)
+    private String rejectionReason;
+}

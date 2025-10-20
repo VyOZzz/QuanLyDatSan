@@ -28,6 +28,11 @@ public class Venues {
     @Column(nullable = false)
     private String name; // tên địa điểm
 
+    // Chủ sân - người sở hữu venues (bắt buộc)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
+
     @OneToMany(mappedBy = "venues", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference // parent reference to allow serializing courts without cycle
     private List<Court> courts; // danh sách sân trực thuộc venues

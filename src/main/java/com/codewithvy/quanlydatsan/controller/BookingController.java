@@ -1,8 +1,6 @@
 package com.codewithvy.quanlydatsan.controller;
 
-import com.codewithvy.quanlydatsan.dto.ApiResponse;
-import com.codewithvy.quanlydatsan.dto.BookingRequest;
-import com.codewithvy.quanlydatsan.dto.BookingResponse;
+import com.codewithvy.quanlydatsan.dto.*;
 import com.codewithvy.quanlydatsan.service.BookingService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +23,46 @@ public class BookingController {
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ApiResponse<BookingResponse>> createBooking(@Valid @RequestBody BookingRequest bookingRequest) {
         BookingResponse bookingResponse = bookingService.createBooking(bookingRequest);
-        return ResponseEntity.ok(ApiResponse.ok(bookingResponse, "Booking created successfully"));
+        return ResponseEntity.ok(ApiResponse.ok(bookingResponse, "Đặt sân thành công. Vui lòng chuyển khoản trong 15 phút."));
+    }
+
+    @PutMapping("/{id}/confirm-payment")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ApiResponse<BookingResponse>> confirmPayment(
+            @PathVariable Long id,
+            @Valid @RequestBody PaymentProofRequest request) {
+        BookingResponse bookingResponse = bookingService.confirmPayment(id, request);
+        return ResponseEntity.ok(ApiResponse.ok(bookingResponse, "Đã gửi chứng minh chuyển khoản. Chờ chủ sân xác nhận."));
+    }
+
+    @PutMapping("/{id}/accept")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<ApiResponse<BookingResponse>> acceptBooking(@PathVariable Long id) {
+        BookingResponse bookingResponse = bookingService.acceptBooking(id);
+        return ResponseEntity.ok(ApiResponse.ok(bookingResponse, "Đã xác nhận đặt sân thành công."));
+    }
+
+    @PutMapping("/{id}/reject")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<ApiResponse<BookingResponse>> rejectBooking(
+            @PathVariable Long id,
+            @Valid @RequestBody BookingRejectRequest request) {
+        BookingResponse bookingResponse = bookingService.rejectBooking(id, request);
+        return ResponseEntity.ok(ApiResponse.ok(bookingResponse, "Đã từ chối đặt sân."));
+    }
+
+    @GetMapping("/venue/{venueId}")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<ApiResponse<List<BookingResponse>>> getVenueBookings(@PathVariable Long venueId) {
+        List<BookingResponse> bookings = bookingService.getVenueBookings(venueId);
+        return ResponseEntity.ok(ApiResponse.ok(bookings, "Lấy danh sách booking thành công."));
+    }
+
+    @GetMapping("/pending")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<ApiResponse<List<BookingResponse>>> getPendingBookings() {
+        List<BookingResponse> bookings = bookingService.getPendingBookingsForOwner();
+        return ResponseEntity.ok(ApiResponse.ok(bookings, "Lấy danh sách booking chờ xác nhận thành công."));
     }
 
     @GetMapping("/my-bookings")
@@ -43,7 +80,7 @@ public class BookingController {
     }
 
     @PutMapping("/{id}/cancel")
-    @PreAuthorize("hasRole('USER') or hasRole('OWNER')")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ApiResponse<BookingResponse>> cancelBooking(@PathVariable Long id) {
         BookingResponse bookingResponse = bookingService.cancelBooking(id);
         return ResponseEntity.ok(ApiResponse.ok(bookingResponse, "Booking cancelled successfully"));

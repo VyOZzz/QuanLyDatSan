@@ -3,11 +3,14 @@ package com.codewithvy.quanlydatsan.service;
 import com.codewithvy.quanlydatsan.dto.VenuesDTO;
 import com.codewithvy.quanlydatsan.dto.VenuesRequest;
 import com.codewithvy.quanlydatsan.entity.Address;
+import com.codewithvy.quanlydatsan.entity.User;
 import com.codewithvy.quanlydatsan.entity.Venues;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
 import com.codewithvy.quanlydatsan.mapper.VenuesMapper;
 import com.codewithvy.quanlydatsan.repository.AddressRepository;
+import com.codewithvy.quanlydatsan.repository.UserRepository;
 import com.codewithvy.quanlydatsan.repository.VenuesRepository;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,10 +22,12 @@ import java.util.stream.Collectors;
 public class VenuesService {
     private final VenuesRepository venuesRepository;
     private final AddressRepository addressRepository;
+    private final UserRepository userRepository;
 
-    public VenuesService(VenuesRepository venuesRepository, AddressRepository addressRepository) {
+    public VenuesService(VenuesRepository venuesRepository, AddressRepository addressRepository, UserRepository userRepository) {
         this.venuesRepository = venuesRepository;
         this.addressRepository = addressRepository;
+        this.userRepository = userRepository;
     }
 
     public List<VenuesDTO> getAll(){
@@ -59,10 +64,16 @@ public class VenuesService {
         }
         Address address = addressRepository.findById(request.getAddressId())
                 .orElseThrow(() -> new ResourceNotFoundException("Address not found with id="+request.getAddressId()));
+
+        // Lấy user hiện tại làm owner
+        User currentUser = getCurrentUser();
+
         Venues v = new Venues();
         v.setName(request.getName());
         v.setNumberOfCourt(request.getNumberOfCourt() == null?0: request.getNumberOfCourt());
         v.setAddress(address);
+        v.setOwner(currentUser); // SET OWNER - BẮT BUỘC
+
         Venues saved = venuesRepository.save(v);
         return VenuesMapper.toDto(saved);
     }
@@ -87,5 +98,14 @@ public class VenuesService {
             throw new ResourceNotFoundException("Venues not found with id="+id);
         }
         venuesRepository.deleteById(id);
+    }
+
+    /**
+     * Lấy thông tin user hiện tại đang đăng nhập
+     */
+    private User getCurrentUser() {
+        String phone = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByPhone(phone)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 }

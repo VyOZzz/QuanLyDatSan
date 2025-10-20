@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import com.codewithvy.quanlydatsan.entity.Role;
 import com.codewithvy.quanlydatsan.repository.RoleRepository;
 
@@ -13,6 +14,7 @@ import com.codewithvy.quanlydatsan.repository.RoleRepository;
  * Có kèm CommandLineRunner để seed một số role mặc định vào DB nếu chưa có.
  */
 @SpringBootApplication
+@EnableScheduling
 public class QuanLyDatSanApplication {
 
     public static void main(String[] args) {
