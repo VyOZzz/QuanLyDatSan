@@ -49,14 +49,9 @@ public class WebSecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration cfg = new CorsConfiguration();
-        // Sử dụng setAllowedOriginPatterns để cho phép origin động (ví dụ khi bạn dùng ngrok thể hiện một hostname ngẫu nhiên)
-        // và tránh xung đột khi allowCredentials = true cùng với wildcard.
         cfg.setAllowedOriginPatterns(List.of("*"));
-        // Cho phép đầy đủ phương thức cần thiết cho API
         cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
-        // Cho phép client gửi header Authorization
         cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","Origin","X-Requested-With"));
-        // Expose header (nếu client cần đọc các header trả về)
         cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -68,9 +63,19 @@ public class WebSecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(c -> c.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
-            .exceptionHandling(e -> e.authenticationEntryPoint(unauthorizedHandler))
+            .exceptionHandling(e -> e
+                .authenticationEntryPoint(unauthorizedHandler)
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    // Xử lý Access Denied - trả về 403
+                    response.setStatus(403);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"success\":false,\"message\":\"Access Denied: " + accessDeniedException.getMessage() + "\"}");
+                })
+            )
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Cho phép error endpoint để tránh lỗi khi xử lý exception
+                .requestMatchers("/error").permitAll()
                 // Mở các API công khai
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/venues/**").permitAll()
