@@ -19,14 +19,12 @@ public class Court {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // id sân
 
+    private String description; // mô tả sân
+
     private boolean isBooked; // trạng thái đã được đặt hay chưa (đơn giản hoá)
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venues_id", nullable = false)
     @JsonBackReference // back reference to avoid cyclic serialization (child -> parent)
     private Venues venues; // venues mà sân này trực thuộc
-
-    // Xoá relation tới BookedCourt vì entity này đã bị loại khỏi dự án.
-    // @OneToMany(mappedBy = "court", cascade = CascadeType.ALL, orphanRemoval = true)
-    // private java.util.List<BookedCourt> bookedCourts;
 }

@@ -28,6 +28,15 @@ public class Venues {
     @Column(nullable = false)
     private String name; // tên địa điểm
 
+    @Column(columnDefinition = "TEXT")
+    private String description; // mô tả về venues
+
+    @Column
+    private String phoneNumber; // số điện thoại liên hệ
+
+    @Column
+    private String email; // email liên hệ
+
     // Chủ sân - người sở hữu venues (bắt buộc)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)

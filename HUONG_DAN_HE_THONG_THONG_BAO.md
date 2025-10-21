@@ -240,7 +240,7 @@ Authorization: Bearer {token}
 - ExpireTime = now + 15 phút
 - Response trả về thông tin TK chủ sân để chuyển khoản
 
-### BƯỚC 2: Hệ thống tự động cancel booking hết hạn
+### BƯỚC 2: Hệ thống tự động cancel booking hết h��n
 - Job chạy mỗi 1 phút (BookingExpirationService)
 - Tìm booking có status PENDING_PAYMENT và expireTime < now
 - Đổi status → EXPIRED
@@ -485,56 +485,38 @@ Tạo environment với các biến:
 
 ### 📝 BƯỚC 1: ĐĂNG KÝ VÀ ĐĂNG NHẬP
 
-#### 1.1. Đăng ký tài khoản USER (khách hàng)
+#### 1.1. Đăng ký tài khoản mới (tự động là USER)
 ```
 POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
 Body (raw JSON):
 {
-  "username": "user_test",
+  "fullname": "Nguyễn Văn User",
   "email": "user@test.com",
+  "phone": "0901234567",
   "password": "123456",
-  "fullName": "Nguyễn Văn User",
-  "phoneNumber": "0901234567"
+  "confirmPassword": "123456"
 }
 
-✅ Expected Response (201):
+✅ Expected Response (200):
 {
   "success": true,
-  "message": "Đăng ký thành công"
-}
-```
-
-#### 1.2. Đăng ký tài khoản OWNER (chủ sân)
-```
-POST {{baseUrl}}/api/auth/register
-Content-Type: application/json
-
-Body (raw JSON):
-{
-  "username": "owner_test",
-  "email": "owner@test.com",
-  "password": "123456",
-  "fullName": "Nguyễn Văn Chủ",
-  "phoneNumber": "0907654321"
+  "data": "User registered successfully",
+  "message": "Registered"
 }
 
-✅ Expected Response (201):
-{
-  "success": true,
-  "message": "Đăng ký thành công"
-}
+📌 NOTE: Tất cả tài khoản mới đều tự động có role ROLE_USER
 ```
 
-#### 1.3. Đăng nhập USER
+#### 1.2. Đăng nhập
 ```
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 Body (raw JSON):
 {
-  "username": "user_test",
+  "phone": "0901234567",
   "password": "123456"
 }
 
@@ -544,9 +526,11 @@ Body (raw JSON):
   "data": {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "type": "Bearer",
-    "username": "user_test",
+    "id": 1,
+    "phone": "0901234567",
     "roles": ["ROLE_USER"]
-  }
+  },
+  "message": "Login success"
 }
 
 📌 ACTION: Copy token và lưu vào Environment variable `userToken`
@@ -557,24 +541,54 @@ Body (raw JSON):
 ```javascript
 if (pm.response.code === 200) {
     var jsonData = pm.response.json();
-    pm.environment.set("userToken", jsonData.data.token);
+    pm.environment.set("userToken", jsonData.data.jwtToken);
 }
 ```
 
-#### 1.4. Đăng nhập OWNER
+#### 1.3. Nâng cấp tài khoản lên OWNER (chỉ khi đã đăng nhập)
+```
+POST {{baseUrl}}/api/users/me/request-owner-role
+Authorization: Bearer {{userToken}}
+
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": "Success",
+  "message": "Đã nâng cấp thành chủ sân thành công! Vui lòng đăng nhập lại để cập nhật quyền."
+}
+
+📌 NOTE: 
+- Phải đăng nhập với tài khoản USER trước
+- Không cần body request
+- Sau khi nâng cấp, PHẢI ĐĂNG NHẬP LẠI để token có role mới
+- Sau khi đăng nhập lại, tài khoản có cả 2 role: ROLE_USER và ROLE_OWNER
+```
+
+#### 1.4. Đăng nhập lại sau khi nâng cấp lên OWNER
 ```
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 Body (raw JSON):
 {
-  "username": "owner_test",
+  "phone": "0901234567",
   "password": "123456"
 }
 
-✅ Expected Response: (tương tự USER)
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "type": "Bearer",
+    "id": 1,
+    "phone": "0901234567",
+    "roles": ["ROLE_USER", "ROLE_OWNER"]  ← Có cả 2 role
+  },
+  "message": "Login success"
+}
 
-📌 ACTION: Copy token và lưu vào Environment variable `ownerToken`
+📌 ACTION: Copy token mới và lưu vào Environment variable `ownerToken`
 ```
 
 **Script tự động lưu:**
@@ -585,9 +599,58 @@ if (pm.response.code === 200) {
 }
 ```
 
+#### 1.5. Xem thông tin tài khoản hiện tại
+```
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{ownerToken}}
+
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "phone": "0901234567",
+    "fullname": "Nguyễn Văn User",
+    "email": "user@test.com",
+    "roles": [
+      {"id": 1, "name": "ROLE_USER"},
+      {"id": 2, "name": "ROLE_OWNER"}
+    ],
+    "bankName": null,
+    "bankAccountNumber": null,
+    "bankAccountName": null
+  },
+  "message": "Success"
+}
+```
+
+#### 1.6. Đăng ký tài khoản thứ 2 để test (USER khác)
+```
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+Body (raw JSON):
+{
+  "fullname": "Nguyễn Văn B",
+  "email": "userb@test.com",
+  "phone": "0909999999",
+  "password": "123456",
+  "confirmPassword": "123456"
+}
+
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": "User registered successfully",
+  "message": "Registered"
+}
+```
+
 ---
 
-### 🏦 BƯỚC 2: CẬP NHẬT THÔNG TIN NGÂN HÀNG CHO CHỦ SÂN
+### 🏦 BƯỚC 2: CẬP NHẬT THÔNG TIN NGÂN HÀNG (CHỦ SÂN)
+
+⚠️ **LƯU Ý:** Trước khi tạo venue, chủ sân PHẢI cập nhật thông tin ngân hàng để nhận thanh toán từ khách đặt sân.
 
 ```
 PUT {{baseUrl}}/api/users/me
@@ -598,29 +661,33 @@ Body (raw JSON):
 {
   "bankName": "Vietcombank",
   "bankAccountNumber": "1234567890",
-  "bankAccountName": "NGUYEN VAN CHU"
+  "bankAccountName": "NGUYEN VAN A"
 }
 
 ✅ Expected Response (200):
 {
   "success": true,
   "data": {
-    "id": 2,
-    "username": "owner_test",
-    "fullName": "Nguyễn Văn Chủ",
+    "id": 1,
+    "fullname": "Nguyễn Văn User",
+    "phone": "0901234567",
+    "email": "user@test.com",
+    "roles": ["ROLE_USER", "ROLE_OWNER"],
     "bankName": "Vietcombank",
     "bankAccountNumber": "1234567890",
-    "bankAccountName": "NGUYEN VAN CHU"
+    "bankAccountName": "NGUYEN VAN A"
   },
   "message": "Cập nhật thông tin thành công"
 }
+
+📌 NOTE: Chỉ tài khoản có ROLE_OWNER mới cần thông tin ngân hàng
 ```
 
 ---
 
-### 🏟️ BƯỚC 3: TẠO DỮ LIỆU TEST (VENUES VÀ COURT)
+### 🏟️ BƯỚC 3: CHỦ SÂN TẠO VENUE VÀ COURT
 
-#### 3.1. Tạo Venue (CHỦ SÂN tạo)
+#### 3.1. Tạo Venue (Sân bóng)
 ```
 POST {{baseUrl}}/api/venues
 Authorization: Bearer {{ownerToken}}
@@ -629,13 +696,13 @@ Content-Type: application/json
 Body (raw JSON):
 {
   "name": "Sân bóng ABC",
-  "description": "Sân bóng đá mini chất lượng cao",
-  "phoneNumber": "0907654321",
+  "description": "Sân bóng đá mini chất lượng cao, đầy đủ tiện nghi",
+  "phoneNumber": "0901234567",
   "email": "contact@sanabac.com",
   "address": {
-    "street": "123 Đường Lê Lợi",
+    "detailAddress": "123 Đường Lê Lợi",
     "district": "Quận 1",
-    "city": "TP. Hồ Chí Minh"
+    "provinceOrCity": "TP. Hồ Chí Minh"
   }
 }
 
@@ -645,16 +712,27 @@ Body (raw JSON):
   "data": {
     "id": 1,
     "name": "Sân bóng ABC",
-    "ownerId": 2,
-    "ownerName": "Nguyễn Văn Chủ"
+    "description": "Sân bóng đá mini chất lượng cao, đầy đủ tiện nghi",
+    "phoneNumber": "0901234567",
+    "email": "contact@sanabac.com",
+    "address": {
+      "detailAddress": "123 Đường Lê Lợi",
+      "district": "Quận 1",
+      "provinceOrCity": "TP. Hồ Chí Minh"
+    },
+    "owner": {
+      "id": 1,
+      "fullname": "Nguyễn Văn User"
+    },
+    "createdAt": "2025-10-21T04:00:00.000Z"
   },
-  "message": "Tạo sân thành công"
+  "message": "Tạo venue thành công"
 }
 
-📌 ACTION: Lưu `id` vào Environment variable `venueId`
+📌 ACTION: Lưu `id` (venueId) vào Environment variable `venueId`
 ```
 
-**Script tự động:**
+**Script tự động lưu venueId:**
 ```javascript
 if (pm.response.code === 201) {
     var jsonData = pm.response.json();
@@ -662,7 +740,7 @@ if (pm.response.code === 201) {
 }
 ```
 
-#### 3.2. Tạo Court (sân con) trong Venue
+#### 3.2. Tạo Court (Sân con) trong Venue
 ```
 POST {{baseUrl}}/api/courts
 Authorization: Bearer {{ownerToken}}
@@ -673,8 +751,7 @@ Body (raw JSON):
   "venueId": {{venueId}},
   "name": "Sân số 1",
   "type": "FOOTBALL_5",
-  "pricePerHour": 200000,
-  "description": "Sân 5 người có mái che"
+  "description": "Sân 5 người có mái che, cỏ nhân tạo cao cấp"
 }
 
 ✅ Expected Response (201):
@@ -683,15 +760,19 @@ Body (raw JSON):
   "data": {
     "id": 1,
     "name": "Sân số 1",
+    "type": "FOOTBALL_5",
+    "description": "Sân 5 người có mái che, cỏ nhân tạo cao cấp",
     "venueId": 1,
-    "isBooked": false
-  }
+    "isBooked": false,
+    "createdAt": "2025-10-21T04:05:00.000Z"
+  },
+  "message": "Tạo court thành công"
 }
 
-📌 ACTION: Lưu `id` vào Environment variable `courtId`
+📌 ACTION: Lưu `id` (courtId) vào Environment variable `courtId`
 ```
 
-**Script tự động:**
+**Script tự động lưu courtId:**
 ```javascript
 if (pm.response.code === 201) {
     var jsonData = pm.response.json();
@@ -699,23 +780,204 @@ if (pm.response.code === 201) {
 }
 ```
 
+#### 3.3. Tạo PriceRule cho Court (Quy định giá theo khung giờ)
+```
+POST {{baseUrl}}/api/price-rules
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+Body (raw JSON):
+{
+  "venueId": {{venueId}},
+  "courtId": {{courtId}},
+  "dayOfWeek": "ALL",
+  "startTime": "06:00:00",
+  "endTime": "17:59:59",
+  "pricePerHour": 200000,
+  "name": "Giờ bình thường (sáng - chiều)"
+}
+
+✅ Expected Response (201):
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Giờ bình thường (sáng - chiều)",
+    "dayOfWeek": "ALL",
+    "startTime": "06:00:00",
+    "endTime": "17:59:59",
+    "pricePerHour": 200000.0,
+    "courtId": 1,
+    "venueId": 1
+  },
+  "message": "Tạo price rule thành công"
+}
+
+📌 NOTE: Tạo thêm price rule cho giờ vàng (18:00-22:00) với giá cao hơn
+```
+
+#### 3.4. Tạo thêm PriceRule cho giờ vàng
+```
+POST {{baseUrl}}/api/price-rules
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+Body (raw JSON):
+{
+  "venueId": {{venueId}},
+  "courtId": {{courtId}},
+  "dayOfWeek": "ALL",
+  "startTime": "18:00:00",
+  "endTime": "22:00:00",
+  "pricePerHour": 300000,
+  "name": "Giờ vàng (tối)"
+}
+
+✅ Expected Response (201):
+{
+  "success": true,
+  "data": {
+    "id": 2,
+    "name": "Giờ vàng (tối)",
+    "dayOfWeek": "ALL",
+    "startTime": "18:00:00",
+    "endTime": "22:00:00",
+    "pricePerHour": 300000.0,
+    "courtId": 1,
+    "venueId": 1
+  },
+  "message": "Tạo price rule thành công"
+}
+```
+
 ---
 
-### 🎯 BƯỚC 4: TEST WORKFLOW CHÍNH
+### ⚽ BƯỚC 4: NGƯỜI DÙNG XEM VÀ ĐẶT SÂN
 
-#### 🔵 TEST CASE 1: ĐẶT SÂN THÀNH CÔNG (HAPPY PATH)
+#### 4.1. Xem danh sách Venues (Không cần đăng nhập)
+```
+GET {{baseUrl}}/api/venues
 
-##### Step 1: USER tạo booking
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Sân bóng ABC",
+      "description": "Sân bóng đá mini chất lượng cao, đầy đủ tiện nghi",
+      "address": {
+        "detailAddress": "123 Đường Lê Lợi",
+        "district": "Quận 1",
+        "provinceOrCity": "TP. Hồ Chí Minh"
+      },
+      "phoneNumber": "0901234567"
+    }
+  ],
+  "message": "Success"
+}
+```
+
+#### 4.2. Xem chi tiết Venue và danh sách Court
+```
+GET {{baseUrl}}/api/venues/{{venueId}}
+
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Sân bóng ABC",
+    "description": "Sân bóng đá mini chất lượng cao, đầy đủ tiện nghi",
+    "courts": [
+      {
+        "id": 1,
+        "name": "Sân số 1",
+        "type": "FOOTBALL_5",
+        "isBooked": false
+      }
+    ],
+    "priceRules": [
+      {
+        "id": 1,
+        "name": "Giờ bình thường (sáng - chiều)",
+        "pricePerHour": 200000.0,
+        "startTime": "06:00:00",
+        "endTime": "17:59:59"
+      },
+      {
+        "id": 2,
+        "name": "Giờ vàng (tối)",
+        "pricePerHour": 300000.0,
+        "startTime": "18:00:00",
+        "endTime": "22:00:00"
+      }
+    ]
+  },
+  "message": "Success"
+}
+```
+
+#### 4.3. Đăng ký tài khoản USER thứ 2 (Người đặt sân)
+```
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+Body (raw JSON):
+{
+  "fullname": "Nguyễn Văn Khách",
+  "email": "khach@test.com",
+  "phone": "0909999999",
+  "password": "123456",
+  "confirmPassword": "123456"
+}
+
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": "User registered successfully",
+  "message": "Registered"
+}
+```
+
+#### 4.4. Đăng nhập USER thứ 2
+```
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+Body (raw JSON):
+{
+  "phone": "0909999999",
+  "password": "123456"
+}
+
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "type": "Bearer",
+    "id": 2,
+    "phone": "0909999999",
+    "roles": ["ROLE_USER"]
+  },
+  "message": "Login success"
+}
+
+📌 ACTION: Copy token và lưu vào Environment variable `userBToken`
+```
+
+#### 4.5. USER tạo booking
 ```
 POST {{baseUrl}}/api/bookings
-Authorization: Bearer {{userToken}}
+Authorization: Bearer {{userBToken}}
 Content-Type: application/json
 
 Body (raw JSON):
 {
   "courtId": {{courtId}},
-  "startTime": "2025-10-22T14:00:00",
-  "endTime": "2025-10-22T16:00:00"
+  "startTime": "2025-10-22T19:00:00",
+  "endTime": "2025-10-22T21:00:00"
 }
 
 ✅ Expected Response (201):
@@ -725,26 +987,33 @@ Body (raw JSON):
     "id": 1,
     "courtId": 1,
     "courtName": "Sân số 1",
+    "venueName": "Sân bóng ABC",
+    "userId": 2,
+    "userName": "Nguyễn Văn Khách",
+    "startTime": "2025-10-22T19:00:00",
+    "endTime": "2025-10-22T21:00:00",
+    "totalPrice": 600000.0,
     "status": "PENDING_PAYMENT",
-    "startTime": "2025-10-22T14:00:00",
-    "endTime": "2025-10-22T16:00:00",
-    "totalPrice": 400000,
-    "expireTime": "2025-10-22T14:15:00",
+    "expireTime": "2025-10-22T19:15:00",
     "ownerBankInfo": {
       "bankName": "Vietcombank",
       "bankAccountNumber": "1234567890",
-      "bankAccountName": "NGUYEN VAN CHU",
-      "ownerName": "Nguyễn Văn Chủ"
-    }
+      "bankAccountName": "NGUYEN VAN A",
+      "ownerName": "Nguyễn Văn User"
+    },
+    "paymentProofUploaded": false
   },
   "message": "Đặt sân thành công. Vui lòng chuyển khoản trong 15 phút."
 }
 
-📌 ACTION: Lưu `id` vào Environment variable `bookingId`
-📌 CHECK: Court đã bị KHÓA (isBooked = true)
+📌 ACTION: 
+- Lưu `id` (bookingId) vào Environment variable `bookingId`
+- User thấy thông tin TK ngân hàng của chủ sân
+- User có 15 phút để chuyển khoản (trước expireTime)
+- Sân đã bị KHÓA (isBooked = true)
 ```
 
-**Script tự động:**
+**Script tự động lưu bookingId:**
 ```javascript
 if (pm.response.code === 201) {
     var jsonData = pm.response.json();
@@ -752,23 +1021,55 @@ if (pm.response.code === 201) {
 }
 ```
 
-##### Step 2: USER xem booking của mình
-```
-GET {{baseUrl}}/api/bookings/my-bookings
-Authorization: Bearer {{userToken}}
+---
 
-✅ Expected: Danh sách chứa booking vừa tạo với status PENDING_PAYMENT
+### 💰 BƯỚC 5: NGƯỜI DÙNG CHUYỂN KHOẢN VÀ XÁC NHẬN
+
+#### 5.1. USER xem lại thông tin booking
+```
+GET {{baseUrl}}/api/bookings/{{bookingId}}
+Authorization: Bearer {{userBToken}}
+
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "status": "PENDING_PAYMENT",
+    "totalPrice": 600000.0,
+    "expireTime": "2025-10-22T19:15:00",
+    "ownerBankInfo": {
+      "bankName": "Vietcombank",
+      "bankAccountNumber": "1234567890",
+      "bankAccountName": "NGUYEN VAN A",
+      "ownerName": "Nguyễn Văn User"
+    }
+  },
+  "message": "Success"
+}
 ```
 
-##### Step 3: USER chuyển khoản và upload chứng minh
+#### 5.2. USER chuyển khoản (ngoài hệ thống)
+💡 **Thực hiện chuyển khoản thật:**
+- Mở app ngân hàng
+- Chuyển khoản đến: **1234567890 - NGUYEN VAN A - Vietcombank**
+- Số tiền: **600.000 VNĐ**
+- Nội dung: **Dat san #1 - Nguyen Van Khach**
+- Chụp màn hình/screenshot giao dịch thành công
+
+#### 5.3. USER upload ảnh chứng minh chuyển khoản
+
+⚠️ **LƯU Ý:** Bạn cần upload ảnh lên một dịch vụ (Imgur, Cloudinary, Firebase...) để có URL. 
+Trong ví dụ này tôi dùng URL giả:
+
 ```
 PUT {{baseUrl}}/api/bookings/{{bookingId}}/confirm-payment
-Authorization: Bearer {{userToken}}
+Authorization: Bearer {{userBToken}}
 Content-Type: application/json
 
 Body (raw JSON):
 {
-  "paymentProofUrl": "https://i.imgur.com/abc123.jpg"
+  "paymentProofUrl": "https://i.imgur.com/abc123def.jpg"
 }
 
 ✅ Expected Response (200):
@@ -777,17 +1078,25 @@ Body (raw JSON):
   "data": {
     "id": 1,
     "status": "PAYMENT_UPLOADED",
-    "paymentProofUrl": "https://i.imgur.com/abc123.jpg",
+    "paymentProofUrl": "https://i.imgur.com/abc123def.jpg",
     "paymentProofUploaded": true,
-    "paymentProofUploadedAt": "2025-10-21T15:05:30.123Z"
+    "paymentProofUploadedAt": "2025-10-22T19:10:00.000Z",
+    "totalPrice": 600000.0
   },
   "message": "Đã gửi chứng minh chuyển khoản. Chờ chủ sân xác nhận."
 }
 
-📌 CHECK: Thông báo được gửi cho OWNER
+📌 NOTE: 
+- Status đổi từ PENDING_PAYMENT → PAYMENT_UPLOADED
+- Hệ thống TỰ ĐỘNG gửi thông báo cho OWNER
+- Sân vẫn bị KHÓA
 ```
 
-##### Step 4: OWNER xem thông báo
+---
+
+### 🔔 BƯỚC 6: CHỦ SÂN NHẬN THÔNG BÁO VÀ XỬ LÝ
+
+#### 6.1. OWNER xem thông báo
 ```
 GET {{baseUrl}}/api/notifications
 Authorization: Bearer {{ownerToken}}
@@ -801,16 +1110,19 @@ Authorization: Bearer {{ownerToken}}
       "bookingId": 1,
       "type": "PAYMENT_UPLOADED",
       "title": "Có khách đã chuyển khoản",
-      "message": "Khách hàng Nguyễn Văn User đã chuyển khoản cho booking #1. Vui lòng kiểm tra và xác nhận.",
+      "message": "Khách hàng Nguyễn Văn Khách đã chuyển khoản cho booking #1 (Sân số 1, 22/10/2025 19:00-21:00). Vui lòng kiểm tra tài khoản ngân hàng và xác nhận.",
       "isRead": false,
-      "createdAt": "2025-10-21T15:05:30.123Z",
-      "senderName": "Nguyễn Văn User"
+      "createdAt": "2025-10-22T19:10:00.000Z",
+      "senderName": "Nguyễn Văn Khách"
     }
-  ]
+  ],
+  "message": "Success"
 }
+
+📌 ACTION: Owner thấy có thông báo mới (isRead = false)
 ```
 
-##### Step 5: OWNER kiểm tra số lượng thông báo chưa đọc
+#### 6.2. OWNER kiểm tra số lượng thông báo chưa đ���c
 ```
 GET {{baseUrl}}/api/notifications/unread-count
 Authorization: Bearer {{ownerToken}}
@@ -818,19 +1130,73 @@ Authorization: Bearer {{ownerToken}}
 ✅ Expected Response (200):
 {
   "success": true,
-  "data": 1
+  "data": 1,
+  "message": "Success"
 }
 ```
 
-##### Step 6: OWNER xem danh sách booking chờ xác nhận
+#### 6.3. OWNER xem chi tiết booking
+```
+GET {{baseUrl}}/api/bookings/{{bookingId}}
+Authorization: Bearer {{ownerToken}}
+
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "courtName": "Sân số 1",
+    "userName": "Nguyễn Văn Khách",
+    "userPhone": "0909999999",
+    "startTime": "2025-10-22T19:00:00",
+    "endTime": "2025-10-22T21:00:00",
+    "totalPrice": 600000.0,
+    "status": "PAYMENT_UPLOADED",
+    "paymentProofUrl": "https://i.imgur.com/abc123def.jpg",
+    "paymentProofUploaded": true,
+    "paymentProofUploadedAt": "2025-10-22T19:10:00.000Z"
+  },
+  "message": "Success"
+}
+
+📌 ACTION: Owner xem ảnh chứng minh chuyển khoản tại URL: https://i.imgur.com/abc123def.jpg
+```
+
+#### 6.4. OWNER xem danh sách booking chờ xác nhận
 ```
 GET {{baseUrl}}/api/bookings/pending
 Authorization: Bearer {{ownerToken}}
 
-✅ Expected: Danh sách booking có status PAYMENT_UPLOADED
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "courtName": "Sân số 1",
+      "userName": "Nguyễn Văn Khách",
+      "userPhone": "0909999999",
+      "totalPrice": 600000.0,
+      "status": "PAYMENT_UPLOADED",
+      "paymentProofUrl": "https://i.imgur.com/abc123def.jpg"
+    }
+  ],
+  "message": "Success"
+}
 ```
 
-##### Step 7: OWNER accept booking
+#### 6.5. OWNER kiểm tra tài khoản ngân hàng (ngoài hệ thống)
+💡 **Thực hiện kiểm tra:**
+- Mở app ngân hàng Vietcombank
+- Kiểm tra tài khoản **1234567890**
+- Xem có giao dịch **+600.000 VNĐ** từ khách hàng không
+- So sánh với ảnh chứng minh
+
+---
+
+### ✅ BƯỚC 7: CHỦ SÂN CHẤP NHẬN ĐẶT SÂN
+
+#### 7.1. OWNER accept booking (nếu tiền đã về)
 ```
 PUT {{baseUrl}}/api/bookings/{{bookingId}}/accept
 Authorization: Bearer {{ownerToken}}
@@ -840,42 +1206,26 @@ Authorization: Bearer {{ownerToken}}
   "success": true,
   "data": {
     "id": 1,
-    "status": "CONFIRMED"
+    "status": "CONFIRMED",
+    "courtName": "Sân số 1",
+    "userName": "Nguyễn Văn Khách",
+    "startTime": "2025-10-22T19:00:00",
+    "endTime": "2025-10-22T21:00:00",
+    "totalPrice": 600000.0
   },
   "message": "Đã xác nhận đặt sân thành công."
 }
 
-📌 CHECK: Thông báo được gửi cho USER
-📌 CHECK: Court vẫn bị KHÓA
+📌 NOTE: 
+- Status đổi từ PAYMENT_UPLOADED → CONFIRMED
+- Hệ thống TỰ ĐỘNG gửi thông báo cho USER
+- Sân vẫn bị KHÓA (giữ cho khách này)
 ```
 
-##### Step 8: USER xem thông báo
+#### 7.2. OWNER đánh dấu đã đọc thông báo
 ```
-GET {{baseUrl}}/api/notifications
-Authorization: Bearer {{userToken}}
-
-✅ Expected Response (200):
-{
-  "success": true,
-  "data": [
-    {
-      "id": 2,
-      "bookingId": 1,
-      "type": "BOOKING_CONFIRMED",
-      "title": "Đặt sân thành công",
-      "message": "Booking #1 của bạn đã được chủ sân xác nhận. Hẹn gặp bạn!",
-      "isRead": false,
-      "createdAt": "2025-10-21T15:10:00.000Z",
-      "senderName": "Nguyễn Văn Chủ"
-    }
-  ]
-}
-```
-
-##### Step 9: USER đánh dấu thông báo đã đọc
-```
-PUT {{baseUrl}}/api/notifications/2/read
-Authorization: Bearer {{userToken}}
+PUT {{baseUrl}}/api/notifications/1/read
+Authorization: Bearer {{ownerToken}}
 
 ✅ Expected Response (200):
 {
@@ -886,11 +1236,72 @@ Authorization: Bearer {{userToken}}
 
 ---
 
-#### 🔴 TEST CASE 2: CHỦ SÂN TỪ CHỐI BOOKING
+### 🎉 BƯỚC 8: NGƯỜI DÙNG NHẬN THÔNG BÁO THÀNH CÔNG
 
-##### Step 1-3: Giống Test Case 1 (tạo booking và upload proof)
+#### 8.1. USER xem thông báo
+```
+GET {{baseUrl}}/api/notifications
+Authorization: Bearer {{userBToken}}
 
-##### Step 4: OWNER reject booking với lý do
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": [
+    {
+      "id": 2,
+      "bookingId": 1,
+      "type": "BOOKING_CONFIRMED",
+      "title": "Đặt sân thành công",
+      "message": "Booking #1 của bạn đã được chủ sân xác nhận. Sân số 1 - Sân bóng ABC. Thời gian: 22/10/2025 19:00-21:00. Hẹn gặp bạn!",
+      "isRead": false,
+      "createdAt": "2025-10-22T19:12:00.000Z",
+      "senderName": "Nguyễn Văn User"
+    }
+  ],
+  "message": "Success"
+}
+
+📌 NOTE: User nhận được thông báo booking đã được xác nhận
+```
+
+#### 8.2. USER xem lại booking của mình
+```
+GET {{baseUrl}}/api/bookings/my-bookings
+Authorization: Bearer {{userBToken}}
+
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "courtName": "Sân số 1",
+      "venueName": "Sân bóng ABC",
+      "startTime": "2025-10-22T19:00:00",
+      "endTime": "2025-10-22T21:00:00",
+      "totalPrice": 600000.0,
+      "status": "CONFIRMED",
+      "venueAddress": {
+        "detailAddress": "123 Đường Lê Lợi",
+        "district": "Quận 1",
+        "provinceOrCity": "TP. Hồ Chí Minh"
+      },
+      "venuePhone": "0901234567"
+    }
+  ],
+  "message": "Success"
+}
+
+✅ ĐẶT SÂN THÀNH CÔNG! User có thể đến chơi sân vào đúng thời gian đã đặt.
+```
+
+---
+
+### ❌ BƯỚC 7B: CHỦ SÂN TỪ CHỐI ĐẶT SÂN (TRƯỜNG HỢP THAY THẾ)
+
+Nếu owner kiểm tra TK ngân hàng và **KHÔNG thấy tiền** hoặc **sai số tiền**:
+
+#### 7B.1. OWNER reject booking
 ```
 PUT {{baseUrl}}/api/bookings/{{bookingId}}/reject
 Authorization: Bearer {{ownerToken}}
@@ -898,7 +1309,7 @@ Content-Type: application/json
 
 Body (raw JSON):
 {
-  "rejectionReason": "Số tiền chuyển khoản không đúng. Vui lòng chuyển đúng 400.000 VNĐ."
+  "rejectionReason": "Số tiền chuyển khoản không đúng. Vui lòng chuyển đúng 600.000 VNĐ và đặt lại."
 }
 
 ✅ Expected Response (200):
@@ -907,372 +1318,151 @@ Body (raw JSON):
   "data": {
     "id": 1,
     "status": "REJECTED",
-    "rejectionReason": "Số tiền chuyển khoản không đúng. Vui lòng chuyển đúng 400.000 VNĐ."
+    "rejectionReason": "Số tiền chuyển khoản không đúng. Vui lòng chuyển đúng 600.000 VNĐ và đặt lại.",
+    "courtName": "Sân số 1"
   },
   "message": "Đã từ chối đặt sân."
 }
 
-📌 CHECK: Thông báo gửi cho USER
-📌 CHECK: Court được GIẢI PHÓNG (isBooked = false)
+📌 NOTE: 
+- Status đổi từ PAYMENT_UPLOADED → REJECTED
+- Hệ thống TỰ ĐỘNG gửi thông báo cho USER kèm lý do
+- Sân được GIẢI PHÓNG (isBooked = false) - người khác có thể đặt
 ```
 
-##### Step 5: USER xem thông báo bị từ chối
-```
-GET {{baseUrl}}/api/notifications
-Authorization: Bearer {{userToken}}
-
-✅ Expected: Thông báo type BOOKING_REJECTED với rejectionReason
-```
-
-##### Step 6: Kiểm tra sân đã được giải phóng
-```
-GET {{baseUrl}}/api/courts/{{courtId}}
-Authorization: Bearer {{userToken}}
-
-✅ Expected Response:
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "isBooked": false  ← Sân đã được giải phóng
-  }
-}
-```
-
----
-
-#### ⏰ TEST CASE 3: BOOKING HẾT HẠN TỰ ĐỘNG CANCEL
-
-##### Step 1: USER tạo booking
-```
-POST {{baseUrl}}/api/bookings
-Authorization: Bearer {{userToken}}
-Content-Type: application/json
-
-Body: (giống Test Case 1)
-
-✅ Expected: Booking với status PENDING_PAYMENT, expireTime = now + 15 phút
-```
-
-##### Step 2: KHÔNG làm gì, chờ 15 phút
-- Đợi 15 phút để expireTime hết hạn
-- Hoặc để test nhanh hơn, vào database và update:
-```sql
-UPDATE booking 
-SET expire_time = DATE_SUB(NOW(), INTERVAL 2 MINUTE) 
-WHERE id = 1;
-```
-
-##### Step 3: Đợi BookingExpirationService chạy (mỗi 1 phút)
-- Xem log server sẽ thấy: `"Found 1 expired bookings to cancel"`
-
-##### Step 4: USER xem thông báo
+#### 7B.2. USER nhận thông báo bị từ chối
 ```
 GET {{baseUrl}}/api/notifications
-Authorization: Bearer {{userToken}}
+Authorization: Bearer {{userBToken}}
 
-✅ Expected Response:
+✅ Expected Response (200):
 {
   "success": true,
   "data": [
     {
-      "type": "BOOKING_EXPIRED",
-      "title": "Booking đã hết hạn",
-      "message": "Booking #1 đã bị hủy do quá thời gian thanh toán."
+      "id": 2,
+      "bookingId": 1,
+      "type": "BOOKING_REJECTED",
+      "title": "Đặt sân bị từ chối",
+      "message": "Booking #1 của bạn đã bị từ chối. Lý do: Số tiền chuyển khoản không đúng. Vui lòng chuyển đúng 600.000 VNĐ và đặt lại.",
+      "isRead": false,
+      "createdAt": "2025-10-22T19:12:00.000Z",
+      "senderName": "Nguyễn Văn User"
     }
-  ]
-}
-```
-
-##### Step 5: Kiểm tra booking đã EXPIRED
-```
-GET {{baseUrl}}/api/bookings/{{bookingId}}
-Authorization: Bearer {{userToken}}
-
-✅ Expected:
-{
-  "data": {
-    "status": "EXPIRED"
-  }
+  ],
+  "message": "Success"
 }
 
-📌 CHECK: Court đã được GIẢI PHÓNG
+📌 NOTE: User thấy lý do từ chối và có thể đặt lại sân
 ```
 
 ---
 
-#### 🚫 TEST CASE 4: USER HỦY BOOKING
+### 📊 BƯỚC 9: KIỂM TRA TRẠNG THÁI SÂN
 
-##### Step 1: USER tạo booking mới
-
-##### Step 2: USER hủy booking
+#### 9.1. Kiểm tra sân sau khi CONFIRMED
 ```
-PUT {{baseUrl}}/api/bookings/{{bookingId}}/cancel
-Authorization: Bearer {{userToken}}
+GET {{baseUrl}}/api/courts/{{courtId}}
 
 ✅ Expected Response (200):
 {
   "success": true,
   "data": {
-    "status": "CANCELLED"
+    "id": 1,
+    "name": "Sân số 1",
+    "type": "FOOTBALL_5",
+    "isBooked": true,  ← SÂN VẪN BỊ KHÓA
+    "venueId": 1
   },
-  "message": "Đã hủy booking thành công"
-}
-
-📌 CHECK: Court được GIẢI PHÓNG
-```
-
----
-
-#### 🔒 TEST CASE 5: KHÔNG THỂ ĐẶT SÂN ĐANG BỊ KHÓA
-
-##### Step 1: USER A tạo booking sân 1 từ 14:00-16:00
-```
-POST {{baseUrl}}/api/bookings
-Authorization: Bearer {{userToken}}
-Body:
-{
-  "courtId": 1,
-  "startTime": "2025-10-22T14:00:00",
-  "endTime": "2025-10-22T16:00:00"
-}
-
-✅ Success → Court bị KHÓA
-```
-
-##### Step 2: Đăng nhập USER B (tạo tài khoản mới)
-- Đăng ký user mới: `user_b@test.com`
-- Lưu token vào biến `userBToken`
-
-##### Step 3: USER B cố đặt CÙNG sân, CÙNG giờ
-```
-POST {{baseUrl}}/api/bookings
-Authorization: Bearer {{userBToken}}
-Body:
-{
-  "courtId": 1,
-  "startTime": "2025-10-22T14:00:00",
-  "endTime": "2025-10-22T16:00:00"
-}
-
-✅ Expected Response (400 hoặc 409):
-{
-  "success": false,
-  "message": "Sân đã được đặt trong khung giờ này"
+  "message": "Success"
 }
 ```
 
-##### Step 4: USER A cancel/reject booking
-
-##### Step 5: USER B thử đặt lại
+#### 9.2. Kiểm tra sân sau khi REJECTED
 ```
-POST {{baseUrl}}/api/bookings
-Authorization: Bearer {{userBToken}}
-Body: (giống trên)
-
-✅ Expected: Success! Vì sân đã được giải phóng
-```
-
----
-
-### 🛠️ BONUS: CÁC API THAO TÁC THÔNG BÁO
-
-#### Đánh dấu tất cả thông báo đã đọc
-```
-PUT {{baseUrl}}/api/notifications/read-all
-Authorization: Bearer {{userToken}}
+GET {{baseUrl}}/api/courts/{{courtId}}
 
 ✅ Expected Response (200):
 {
   "success": true,
-  "message": "Đã đánh dấu tất cả thông báo là đã đọc"
+  "data": {
+    "id": 1,
+    "name": "Sân số 1",
+    "type": "FOOTBALL_5",
+    "isBooked": false,  ← SÂN ĐÃ ĐƯỢC GIẢI PHÓNG
+    "venueId": 1
+  },
+  "message": "Success"
 }
+
+📌 NOTE: Người khác có thể đặt sân này
 ```
 
-#### Xóa thông báo
-```
-DELETE {{baseUrl}}/api/notifications/1
-Authorization: Bearer {{userToken}}
+---
 
-✅ Expected Response (200):
-{
-  "success": true,
-  "message": "Đã xóa thông báo"
-}
-```
+### 🔄 BƯỚC 10: OWNER XEM TẤT CẢ BOOKING CỦA VENUE
 
-#### OWNER xem tất cả booking của venue
 ```
 GET {{baseUrl}}/api/bookings/venue/{{venueId}}
 Authorization: Bearer {{ownerToken}}
 
-✅ Expected: Danh sách tất cả booking của venue đó
+✅ Expected Response (200):
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "courtName": "Sân số 1",
+      "userName": "Nguyễn Văn Khách",
+      "userPhone": "0909999999",
+      "startTime": "2025-10-22T19:00:00",
+      "endTime": "2025-10-22T21:00:00",
+      "totalPrice": 600000.0,
+      "status": "CONFIRMED",
+      "createdAt": "2025-10-22T19:05:00.000Z"
+    }
+  ],
+  "message": "Success"
+}
+
+📌 NOTE: Owner có thể xem tất cả booking của tất cả sân trong venue
 ```
 
 ---
 
-## 📊 CHECKLIST KIỂM TRA SAU MỖI TEST
+## 🎯 TÓM TẮT LUỒNG HOÀN CHỈNH
 
-#### ✅ Sau khi tạo booking (PENDING_PAYMENT):
-- [ ] Response có `expireTime` (now + 15 phút)
-- [ ] Response có `ownerBankInfo` đầy đủ
-- [ ] Database: `booking.status = 'PENDING_PAYMENT'`
-- [ ] Database: `court.is_booked = true` ← **SÂN BỊ KHÓA**
+### ✅ Luồng THÀNH CÔNG:
+1. **OWNER** đăng ký → Nâng cấp lên OWNER → Cập nhật bank info
+2. **OWNER** tạo Venue → Tạo Court → Tạo PriceRule
+3. **USER** xem danh sách venue → Chọn sân
+4. **USER** đăng ký/đăng nh���p → Tạo booking
+   - Status: **PENDING_PAYMENT**
+   - Sân: **BỊ KHÓA**
+   - Nhận thông tin TK chủ sân
+5. **USER** chuyển khoản (thật) → Upload ảnh chứng minh → Confirm payment
+   - Status: **PAYMENT_UPLOADED**
+   - **OWNER nhận thông báo tự động**
+6. **OWNER** kiểm tra TK ngân hàng → Thấy tiền → **ACCEPT**
+   - Status: **CONFIRMED**
+   - **USER nhận thông báo tự động**
+   - Sân: **VẪN BỊ KHÓA** (giữ cho khách)
+7. **USER** đến sân chơi đúng giờ ✅
 
-#### ✅ Sau khi confirm payment (PAYMENT_UPLOADED):
-- [ ] Response có `paymentProofUrl`
-- [ ] Response có `paymentProofUploadedAt`
-- [ ] Database: `booking.status = 'PAYMENT_UPLOADED'`
-- [ ] Database: `notification` có 1 record với `type = 'PAYMENT_UPLOADED'`, `recipient_id = owner_id`
-- [ ] Court vẫn bị KHÓA
+### ❌ Luồng TỪ CHỐI:
+1-5. Giống luồng thành công
+6. **OWNER** kiểm tra TK → Không thấy tiền/sai số tiền → **REJECT** với l�� do
+   - Status: **REJECTED**
+   - **USER nhận thông báo + lý do từ chối**
+   - Sân: **GIẢI PHÓNG** (người khác có thể đặt)
+7. **USER** có thể đặt lại sân hoặc chọn sân khác
 
-#### ✅ Sau khi OWNER accept (CONFIRMED):
-- [ ] Database: `booking.status = 'CONFIRMED'`
-- [ ] Database: `notification` có record với `type = 'BOOKING_CONFIRMED'`, `recipient_id = user_id`
-- [ ] Court vẫn bị KHÓA
-
-#### ✅ Sau khi OWNER reject (REJECTED):
-- [ ] Response có `rejectionReason`
-- [ ] Database: `booking.status = 'REJECTED'`
-- [ ] Database: `court.is_booked = false` ← **SÂN ĐƯỢC GIẢI PHÓNG**
-- [ ] Database: `notification` có record với `type = 'BOOKING_REJECTED'`
-
-#### ✅ Sau khi hết hạn (EXPIRED):
-- [ ] Database: `booking.status = 'EXPIRED'`
-- [ ] Database: `court.is_booked = false` ← **SÂN ĐƯỢC GIẢI PHÓNG**
-- [ ] Database: `notification` có record với `type = 'BOOKING_EXPIRED'`
-
----
-
-### 🔍 KIỂM TRA DATABASE (SQL Queries)
-
-```sql
--- Xem tất cả bookings
-SELECT id, court_id, user_id, status, expire_time, 
-       payment_proof_uploaded, rejection_reason, 
-       start_time, end_time, total_price
-FROM booking 
-ORDER BY created_at DESC;
-
--- Xem tất cả notifications
-SELECT id, recipient_id, booking_id, type, title, message, 
-       is_read, created_at, sender_name
-FROM notification 
-ORDER BY created_at DESC;
-
--- Xem trạng thái court
-SELECT id, name, venue_id, is_booked 
-FROM court;
-
--- Xem thông tin user (check bank info)
-SELECT id, username, full_name, 
-       bank_name, bank_account_number, bank_account_name
-FROM user
-WHERE username IN ('user_test', 'owner_test');
-
--- Kiểm tra booking hết hạn
-SELECT id, status, expire_time, NOW() as current_time,
-       TIMESTAMPDIFF(MINUTE, NOW(), expire_time) as minutes_left
-FROM booking
-WHERE status = 'PENDING_PAYMENT';
-```
+### ⏰ Luồng HẾT HẠN:
+1-4. Giống luồng thành công
+5. **USER** không chuyển khoản trong 15 phút
+6. **Hệ thống** tự động cancel booking sau 15 phút
+   - Status: **EXPIRED**
+   - **USER nhận thông báo**
+   - Sân: **GIẢI PHÓNG**
 
 ---
-
-### 💡 TIPS KHI TEST
-
-1. **Sử dụng Postman Environment Variables** để tránh phải copy-paste token và ID thủ công
-
-2. **Tạo Pre-request Scripts** để tự động generate thời gian:
-```javascript
-// Tạo startTime = 2 tiếng sau
-const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000);
-pm.environment.set("startTime", startTime.toISOString().slice(0, -5));
-
-// Tạo endTime = 4 tiếng sau
-const endTime = new Date(Date.now() + 4 * 60 * 60 * 1000);
-pm.environment.set("endTime", endTime.toISOString().slice(0, -5));
-```
-
-3. **Tạo Test Scripts** để verify response:
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response has success = true", function () {
-    var jsonData = pm.response.json();
-    pm.expect(jsonData.success).to.eql(true);
-});
-
-pm.test("Booking status is CONFIRMED", function () {
-    var jsonData = pm.response.json();
-    pm.expect(jsonData.data.status).to.eql("CONFIRMED");
-});
-```
-
-4. **Test nhanh expiration** bằng cách update database thay vì đợi 15 phút
-
-5. **Reset database** giữa các lần test để tránh conflict:
-```sql
-DROP DATABASE quanlydatsan;
-CREATE DATABASE quanlydatsan;
-```
-Sau đó run app lại.
-
----
-
-## 📞 HỖ TRỢ & TROUBLESHOOTING
-
-### Lỗi thường gặp:
-
-#### 1. Lỗi compile: "incompatible types: Instant cannot be converted to LocalDateTime"
-**Nguyên nhân:** Sử dụng sai kiểu dữ liệu cho `createdAt`
-
-**Giải pháp:** `NotificationDTO` phải dùng `Instant`, không phải `LocalDateTime`
-
-#### 2. Lỗi khi run app: "Column 'owner_id' cannot be null"
-**Nguyên nhân:** Database có dữ liệu venues cũ không có owner_id
-
-**Giải pháp:**
-```sql
-DROP DATABASE quanlydatsan;
-CREATE DATABASE quanlydatsan;
-```
-Sau đó run app lại.
-
-#### 3. Booking không tự động cancel sau 15 phút
-**Kiểm tra:**
-- ✅ `@EnableScheduling` đã được thêm vào `QuanLyDatSanApplication.java`?
-- ✅ `BookingExpirationService` có annotation `@Service` và `@Scheduled`?
-- ✅ Xem log có message "Found X expired bookings to cancel"?
-
-#### 4. Thông báo không được tạo
-**Kiểm tra:**
-- ✅ Bảng `notification` đã được tạo?
-- ✅ `NotificationService` đã được inject vào `BookingServiceImpl`?
-- ✅ Xem log có lỗi gì không?
-
-#### 5. API trả về 403 Forbidden
-**Nguyên nhân:** User không có quyền (role) phù hợp
-
-**Giải pháp:** Kiểm tra:
-- User có role USER/OWNER đúng không?
-- Token JWT có hợp lệ không?
-
----
-
-## 🎉 HOÀN THÀNH!
-
-Hệ thống đã sẵn sàng sử dụng với đầy đủ chức năng:
-- ✅ Đặt sân với thời hạn thanh toán 15 phút
-- ✅ **Khóa sân trong thời gian pending** - Không ai đặt được cùng lúc
-- ✅ Upload chứng minh chuyển khoản
-- ✅ Hệ thống thông báo real-time
-- ✅ Accept/Reject từ chủ sân
-- ✅ **Tự động cancel booking hết hạn** (chạy mỗi 1 phút)
-- ✅ **Tự động giải phóng sân** khi expired/cancelled/rejected
-- ✅ Phân quyền rõ ràng giữa USER và OWNER
-- ✅ Không cần migration SQL thủ công - Hibernate tự động tạo tất cả
-
-**Chúc bạn phát triển app thành công!** 🚀

@@ -1,5 +1,6 @@
 package com.codewithvy.quanlydatsan.service;
 
+import com.codewithvy.quanlydatsan.dto.AddressDTO;
 import com.codewithvy.quanlydatsan.dto.VenuesDTO;
 import com.codewithvy.quanlydatsan.dto.VenuesRequest;
 import com.codewithvy.quanlydatsan.entity.Address;
@@ -10,6 +11,8 @@ import com.codewithvy.quanlydatsan.mapper.VenuesMapper;
 import com.codewithvy.quanlydatsan.repository.AddressRepository;
 import com.codewithvy.quanlydatsan.repository.UserRepository;
 import com.codewithvy.quanlydatsan.repository.VenuesRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +23,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 public class VenuesService {
+    private static final Logger log = LoggerFactory.getLogger(VenuesService.class);
+
     private final VenuesRepository venuesRepository;
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
@@ -59,22 +64,42 @@ public class VenuesService {
 
     @Transactional
     public VenuesDTO create(VenuesRequest request){
-        if(request.getAddressId() == null){
-            throw new ResourceNotFoundException("addressId is required");
+        log.info("Creating venue with request: {}", request);
+
+        if(request.getAddress() == null){
+            log.error("Address is null in request");
+            throw new IllegalArgumentException("Address is required");
         }
-        Address address = addressRepository.findById(request.getAddressId())
-                .orElseThrow(() -> new ResourceNotFoundException("Address not found with id="+request.getAddressId()));
+
+        log.info("Address received - province: {}, district: {}, detail: {}",
+            request.getAddress().getProvinceOrCity(),
+            request.getAddress().getDistrict(),
+            request.getAddress().getDetailAddress());
+
+        // Tạo Address mới từ AddressDTO
+        Address address = createAddressFromDTO(request.getAddress());
+        log.info("Address created with id: {}", address.getId());
 
         // Lấy user hiện tại làm owner
         User currentUser = getCurrentUser();
+        log.info("Current user found: id={}, phone={}, roles={}",
+            currentUser.getId(),
+            currentUser.getPhone(),
+            currentUser.getRoles());
 
         Venues v = new Venues();
         v.setName(request.getName());
-        v.setNumberOfCourt(request.getNumberOfCourt() == null?0: request.getNumberOfCourt());
+        v.setDescription(request.getDescription());
+        v.setPhoneNumber(request.getPhoneNumber());
+        v.setEmail(request.getEmail());
         v.setAddress(address);
         v.setOwner(currentUser); // SET OWNER - BẮT BUỘC
+        v.setNumberOfCourt(0); // Khởi tạo = 0, sẽ tự động tăng khi thêm court
 
+        log.info("Saving venue: {}", v.getName());
         Venues saved = venuesRepository.save(v);
+        log.info("Venue saved successfully with id: {}", saved.getId());
+
         return VenuesMapper.toDto(saved);
     }
 
@@ -82,13 +107,29 @@ public class VenuesService {
     public VenuesDTO update(Long id, VenuesRequest request){
         Venues existing = venuesRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Venues not found with id="+id));
-        if(request.getName()!=null) existing.setName(request.getName());
-        if(request.getNumberOfCourt()!=null) existing.setNumberOfCourt(request.getNumberOfCourt());
-        if(request.getAddressId()!=null){
-            Address address = addressRepository.findById(request.getAddressId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Address not found with id="+request.getAddressId()));
-            existing.setAddress(address);
+
+        if(request.getName() != null && !request.getName().isBlank()) {
+            existing.setName(request.getName());
         }
+
+        if(request.getDescription() != null) {
+            existing.setDescription(request.getDescription());
+        }
+
+        if(request.getPhoneNumber() != null) {
+            existing.setPhoneNumber(request.getPhoneNumber());
+        }
+
+        if(request.getEmail() != null) {
+            existing.setEmail(request.getEmail());
+        }
+
+        if(request.getAddress() != null){
+            // Tạo Address mới từ AddressDTO
+            Address newAddress = createAddressFromDTO(request.getAddress());
+            existing.setAddress(newAddress);
+        }
+
         return VenuesMapper.toDto(existing); // managed entity auto flushed
     }
 
@@ -101,10 +142,27 @@ public class VenuesService {
     }
 
     /**
+     * Tạo Address entity từ AddressDTO
+     */
+    private Address createAddressFromDTO(AddressDTO dto) {
+        log.info("Creating address from DTO");
+        Address address = new Address();
+        address.setDetailAddress(dto.getDetailAddress());
+        address.setDistrict(dto.getDistrict());
+        address.setProvinceOrCity(dto.getProvinceOrCity());
+
+        log.info("Saving address to database");
+        Address saved = addressRepository.save(address);
+        log.info("Address saved with id: {}", saved.getId());
+        return saved;
+    }
+
+    /**
      * Lấy thông tin user hiện tại đang đăng nhập
      */
     private User getCurrentUser() {
         String phone = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info("Getting current user with phone: {}", phone);
         return userRepository.findByPhone(phone)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }

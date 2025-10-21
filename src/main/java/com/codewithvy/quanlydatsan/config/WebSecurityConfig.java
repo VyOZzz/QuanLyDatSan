@@ -76,10 +76,10 @@ public class WebSecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Cho phép error endpoint để tránh lỗi khi xử lý exception
                 .requestMatchers("/error").permitAll()
-                // Mở các API công khai
+                // Mở các API công khai - hỗ trợ cả có và không có dấu / cuối
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/venues/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/courts/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/venues", "/api/venues/", "/api/venues/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/courts", "/api/courts/", "/api/courts/**").permitAll()
                 // Cho phép truy cập Swagger/OpenAPI UI và docs
                 .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**", "/swagger-ui.html", "/swagger-ui/index.html").permitAll()
                 .requestMatchers(HttpMethod.GET, "/hello").permitAll()

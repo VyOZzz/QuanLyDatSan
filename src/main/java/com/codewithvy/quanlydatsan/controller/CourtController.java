@@ -1,5 +1,6 @@
 package com.codewithvy.quanlydatsan.controller;
 
+import com.codewithvy.quanlydatsan.dto.CourtRequest;
 import com.codewithvy.quanlydatsan.entity.Court;
 import com.codewithvy.quanlydatsan.entity.Venues;
 import com.codewithvy.quanlydatsan.repository.CourtRepository;
@@ -30,16 +31,31 @@ public class CourtController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createCourt(@RequestBody Court court) {
-        if (court.getVenues() == null || court.getVenues().getId() == null) {
-            return ResponseEntity.badRequest().body("venues.id is required");
+    public ResponseEntity<?> createCourt(@RequestBody CourtRequest request) {
+        if (request.getVenueId() == null) {
+            return ResponseEntity.badRequest().body("venueId is required");
         }
-        Optional<Venues> venues = venuesRepository.findById(court.getVenues().getId());
-        if (venues.isEmpty()) {
+
+        Optional<Venues> venuesOpt = venuesRepository.findById(request.getVenueId());
+        if (venuesOpt.isEmpty()) {
             return ResponseEntity.badRequest().body("Venues not found");
         }
-        court.setVenues(venues.get());
-        return ResponseEntity.ok(courtRepository.save(court));
+
+        Venues venues = venuesOpt.get();
+
+        // Tạo Court mới từ request
+        Court court = new Court();
+        court.setDescription(request.getDescription());
+        court.setBooked(false); // Mặc định chưa được đặt
+        court.setVenues(venues);
+
+        Court savedCourt = courtRepository.save(court);
+
+        // Tự động tăng numberOfCourt
+        venues.setNumberOfCourt(venues.getNumberOfCourt() + 1);
+        venuesRepository.save(venues);
+
+        return ResponseEntity.ok(savedCourt);
     }
 
     @PutMapping("/{id}")
@@ -55,10 +71,23 @@ public class CourtController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCourt(@PathVariable Long id) {
-        if (!courtRepository.existsById(id)) {
+        Optional<Court> courtOpt = courtRepository.findById(id);
+        if (courtOpt.isEmpty()) {
             return ResponseEntity.<Void>notFound().build();
         }
+
+        Court court = courtOpt.get();
+        Venues venues = court.getVenues();
+
+        // Xóa court
         courtRepository.deleteById(id);
+
+        // Tự động giảm numberOfCourt
+        if (venues != null && venues.getNumberOfCourt() > 0) {
+            venues.setNumberOfCourt(venues.getNumberOfCourt() - 1);
+            venuesRepository.save(venues);
+        }
+
         return ResponseEntity.<Void>noContent().build();
     }
 }

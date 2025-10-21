@@ -9,7 +9,10 @@ import java.time.LocalDateTime;
 @Data
 public class BookingRequest {
     @NotNull
-    private Long courtId;
+    private Long venueId; // ID của venues
+
+    @NotNull
+    private Long courtId; // ID của court cụ thể trong venues
 
     @NotNull
     @Future
@@ -19,4 +22,3 @@ public class BookingRequest {
     @Future
     private LocalDateTime endTime;
 }
-

@@ -58,7 +58,7 @@ public class PriceService {
             }
 
             // Giá mỗi giờ theo quy tắc
-            long pricePerHour = rule.get().getPricePerHour();
+            Double pricePerHour = rule.get().getPricePerHour();
             // Giá cho một khối 30 phút là giá mỗi giờ chia 2
             double costForSlot = pricePerHour / 2.0;
 
