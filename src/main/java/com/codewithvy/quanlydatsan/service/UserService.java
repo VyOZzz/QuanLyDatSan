@@ -1,5 +1,6 @@
 package com.codewithvy.quanlydatsan.service;
 
+import com.codewithvy.quanlydatsan.dto.UpdateUserRequest;
 import com.codewithvy.quanlydatsan.entity.Role;
 import com.codewithvy.quanlydatsan.entity.User;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
@@ -32,7 +33,7 @@ public class UserService {
     }
 
     /**
-     * Thêm role OWNER cho user (nâng cấp thành chủ s��n)
+     * Thêm role OWNER cho user (nâng cấp thành chủ sân)
      */
     @Transactional
     public void addOwnerRole(User user) {
@@ -52,5 +53,42 @@ public class UserService {
         user.getRoles().add(ownerRole);
         userRepository.save(user);
     }
-}
 
+    /**
+     * Cập nhật thông tin user hiện tại
+     */
+    @Transactional
+    public User updateCurrentUser(UpdateUserRequest request) {
+        User user = getCurrentUser();
+
+        // Cập nhật thông tin cơ bản (nếu có)
+        if (request.getFullname() != null && !request.getFullname().isBlank()) {
+            user.setFullname(request.getFullname());
+        }
+
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            // Kiểm tra email đã tồn tại chưa (trừ email của chính user hiện tại)
+            userRepository.findByEmail(request.getEmail()).ifPresent(existingUser -> {
+                if (!existingUser.getId().equals(user.getId())) {
+                    throw new RuntimeException("Email đã được sử dụng bởi tài khoản khác");
+                }
+            });
+            user.setEmail(request.getEmail());
+        }
+
+        // Cập nhật thông tin ngân hàng (thường dùng cho OWNER)
+        if (request.getBankName() != null) {
+            user.setBankName(request.getBankName());
+        }
+
+        if (request.getBankAccountNumber() != null) {
+            user.setBankAccountNumber(request.getBankAccountNumber());
+        }
+
+        if (request.getBankAccountName() != null) {
+            user.setBankAccountName(request.getBankAccountName());
+        }
+
+        return userRepository.save(user);
+    }
+}

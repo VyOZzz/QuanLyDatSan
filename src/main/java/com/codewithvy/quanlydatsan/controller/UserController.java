@@ -1,6 +1,7 @@
 package com.codewithvy.quanlydatsan.controller;
 
 import com.codewithvy.quanlydatsan.dto.ApiResponse;
+import com.codewithvy.quanlydatsan.dto.UpdateUserRequest;
 import com.codewithvy.quanlydatsan.entity.User;
 import com.codewithvy.quanlydatsan.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +30,7 @@ public class UserController {
             User currentUser = userService.getCurrentUser();
             userService.addOwnerRole(currentUser);
             return ResponseEntity.ok(
-                ApiResponse.ok("Đã nâng cấp thành chủ sân thành công! Vui lòng đăng nhập lại để cập nhật quyền.", "Success")
+                ApiResponse.ok("Đã nâng cấp thành chủ sân thành công! Vui lòng đăng nh��p lại để cập nhật quyền.", "Success")
             );
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -46,5 +47,19 @@ public class UserController {
         User user = userService.getCurrentUser();
         return ResponseEntity.ok(ApiResponse.ok(user, "Success"));
     }
-}
 
+    /**
+     * API cập nhật thông tin user (bao gồm thông tin ngân hàng)
+     */
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<User>> updateCurrentUser(@RequestBody UpdateUserRequest request) {
+        try {
+            User updatedUser = userService.updateCurrentUser(request);
+            return ResponseEntity.ok(ApiResponse.ok(updatedUser, "Cập nhật thông tin thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+}
