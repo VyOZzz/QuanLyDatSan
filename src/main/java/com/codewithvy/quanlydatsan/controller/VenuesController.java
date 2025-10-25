@@ -4,6 +4,10 @@ import com.codewithvy.quanlydatsan.dto.ApiResponse;
 import com.codewithvy.quanlydatsan.dto.VenuesDTO;
 import com.codewithvy.quanlydatsan.dto.VenuesRequest;
 import com.codewithvy.quanlydatsan.service.VenuesService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +18,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/venues")
+@Tag(name = "Venues", description = "API quản lý địa điểm/sân thể thao")
 public class VenuesController {
     private static final Logger log = LoggerFactory.getLogger(VenuesController.class);
 
@@ -24,6 +29,7 @@ public class VenuesController {
     }
 
     @GetMapping
+    @Operation(summary = "Lấy danh sách tất cả venues", description = "Trả về danh sách tất cả các venues trong hệ thống")
     public ResponseEntity<ApiResponse<List<VenuesDTO>>> getAllVenues() {
         return ResponseEntity.ok(ApiResponse.ok(venuesService.getAll(), "List venues"));
     }
@@ -33,21 +39,32 @@ public class VenuesController {
      * VD: /api/venues/search?name=abc&province=Hanoi
      */
     @GetMapping("/search")
+    @Operation(
+        summary = "Tìm kiếm venues",
+        description = "Tìm kiếm venues theo tên và/hoặc địa chỉ (tỉnh, quận, chi tiết). Tất cả tham số đều tùy chọn"
+    )
     public ResponseEntity<ApiResponse<List<VenuesDTO>>> searchVenues(
-            @RequestParam(name = "name", required = false) String name,
-            @RequestParam(name = "province", required = false) String province,
-            @RequestParam(name = "district", required = false) String district,
-            @RequestParam(name = "detail", required = false) String detail) {
+            @Parameter(description = "Tên venue cần tìm") @RequestParam(name = "name", required = false) String name,
+            @Parameter(description = "Tỉnh/Thành phố") @RequestParam(name = "province", required = false) String province,
+            @Parameter(description = "Quận/Huyện") @RequestParam(name = "district", required = false) String district,
+            @Parameter(description = "Địa chỉ chi tiết") @RequestParam(name = "detail", required = false) String detail) {
         List<VenuesDTO> results = venuesService.search(name, province, district, detail);
         return ResponseEntity.ok(ApiResponse.ok(results, "Search results"));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<VenuesDTO>> getVenuesById(@PathVariable Long id) {
+    @Operation(summary = "Lấy thông tin venue theo ID", description = "Trả về thông tin chi tiết của một venue")
+    public ResponseEntity<ApiResponse<VenuesDTO>> getVenuesById(
+            @Parameter(description = "ID của venue", required = true) @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(venuesService.getById(id)));
     }
 
     @PostMapping
+    @Operation(
+        summary = "Tạo venue mới",
+        description = "Tạo một venue mới (yêu cầu xác thực)",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
     public ResponseEntity<ApiResponse<VenuesDTO>> createVenues(@Valid @RequestBody VenuesRequest request) {
         try {
             log.info("POST /api/venues - Request received: name={}, address={}",
@@ -65,13 +82,26 @@ public class VenuesController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<VenuesDTO>> updateVenues(@PathVariable Long id, @RequestBody VenuesRequest request) {
+    @Operation(
+        summary = "Cập nhật venue",
+        description = "Cập nhật thông tin venue theo ID (yêu cầu xác thực)",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ResponseEntity<ApiResponse<VenuesDTO>> updateVenues(
+            @Parameter(description = "ID của venue cần cập nhật", required = true) @PathVariable Long id,
+            @RequestBody VenuesRequest request) {
         VenuesDTO updated = venuesService.update(id, request);
         return ResponseEntity.ok(ApiResponse.ok(updated, "Updated"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteVenues(@PathVariable Long id) {
+    @Operation(
+        summary = "Xóa venue",
+        description = "Xóa venue theo ID (yêu cầu xác thực)",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ResponseEntity<ApiResponse<Void>> deleteVenues(
+            @Parameter(description = "ID của venue cần xóa", required = true) @PathVariable Long id) {
         venuesService.delete(id);
         return ResponseEntity.ok(ApiResponse.ok(null, "Deleted"));
     }
