@@ -57,4 +57,12 @@ public class Venues {
     @OneToMany(mappedBy = "venues", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference("venues-pricerules") // Đặt tên khác để tránh xung đột
     private List<PriceRules> priceRules = new ArrayList<>();
+
+    // Đánh giá trung bình của venues (1-5 sao)
+    @Column
+    private Double averageRating = 0.0;
+
+    // Tổng số đánh giá
+    @Column
+    private Integer totalReviews = 0;
 }

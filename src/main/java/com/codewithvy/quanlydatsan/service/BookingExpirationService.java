@@ -74,5 +74,41 @@ public class BookingExpirationService {
             }
         }
     }
-}
 
+    /**
+     * Chạy mỗi 5 phút để kiểm tra và hoàn thành các booking đã kết thúc
+     */
+    @Scheduled(fixedRate = 300000) // 300000ms = 5 phút
+    @Transactional
+    public void completeFinishedBookings() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // Tìm các booking CONFIRMED đã kết thúc (endTime đã qua)
+        List<Booking> finishedBookings = bookingRepository.findByStatusAndEndTimeBefore(
+                BookingStatus.CONFIRMED,
+                now
+        );
+
+        if (!finishedBookings.isEmpty()) {
+            log.info("Found {} finished bookings to complete", finishedBookings.size());
+
+            for (Booking booking : finishedBookings) {
+                try {
+                    // Đổi status sang COMPLETED
+                    booking.setStatus(BookingStatus.COMPLETED);
+
+                    // GIẢI PHÓNG SÂN - cho phép người khác đặt
+                    Court court = booking.getCourt();
+                    court.setBooked(false);
+                    courtRepository.save(court);
+
+                    bookingRepository.save(booking);
+
+                    log.info("Completed booking ID: {}", booking.getId());
+                } catch (Exception e) {
+                    log.error("Error completing booking ID: {}", booking.getId(), e);
+                }
+            }
+        }
+    }
+}

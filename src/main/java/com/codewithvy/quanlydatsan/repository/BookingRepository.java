@@ -22,6 +22,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     // Tìm các booking hết hạn cần auto-cancel
     List<Booking> findByStatusAndExpireTimeBefore(BookingStatus status, LocalDateTime expireTime);
 
+    // Tìm các booking đã kết thúc cần chuyển sang COMPLETED
+    List<Booking> findByStatusAndEndTimeBefore(BookingStatus status, LocalDateTime endTime);
+
     // Tìm các booking của một venues (cho chủ sân xem)
     @Query("SELECT b FROM Booking b WHERE b.court.venues.id = :venueId ORDER BY b.startTime DESC")
     List<Booking> findByVenueId(@Param("venueId") Long venueId);

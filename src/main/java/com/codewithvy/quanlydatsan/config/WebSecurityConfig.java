@@ -80,6 +80,8 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/venues", "/api/venues/", "/api/venues/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/courts", "/api/courts/", "/api/courts/**").permitAll()
+                // Cho phép xem reviews công khai
+                .requestMatchers(HttpMethod.GET, "/api/venues/*/reviews").permitAll()
                 // Cho phép truy cập Swagger/OpenAPI UI và docs
                 .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**", "/swagger-ui.html", "/swagger-ui/index.html").permitAll()
                 .requestMatchers(HttpMethod.GET, "/hello").permitAll()
