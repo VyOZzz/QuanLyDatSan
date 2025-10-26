@@ -12,6 +12,13 @@ import java.io.IOException;
 
 @Component
 public class AuthEntryPointJwt implements AuthenticationEntryPoint {
+
+    private final ObjectMapper mapper;
+
+    public AuthEntryPointJwt(ObjectMapper mapper) {
+        this.mapper = mapper;
+    }
+
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException, ServletException {
@@ -21,7 +28,6 @@ public class AuthEntryPointJwt implements AuthenticationEntryPoint {
 
         ApiResponse<Void> apiResponse = ApiResponse.fail("Unauthorized: " + authException.getMessage());
 
-        ObjectMapper mapper = new ObjectMapper();
         mapper.writeValue(response.getOutputStream(), apiResponse);
     }
 }
