@@ -4,6 +4,7 @@ import com.codewithvy.quanlydatsan.dto.BookingRejectRequest;
 import com.codewithvy.quanlydatsan.dto.BookingRequest;
 import com.codewithvy.quanlydatsan.dto.BookingResponse;
 import com.codewithvy.quanlydatsan.dto.PaymentProofRequest;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -19,4 +20,7 @@ public interface BookingService {
     BookingResponse rejectBooking(Long bookingId, BookingRejectRequest request);
     List<BookingResponse> getVenueBookings(Long venueId);
     List<BookingResponse> getPendingBookingsForOwner();
+
+    // Phương thức mới cho upload ảnh chuyển khoản
+    BookingResponse uploadPaymentProof(Long bookingId, MultipartFile file);
 }

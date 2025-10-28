@@ -8,11 +8,13 @@ import com.codewithvy.quanlydatsan.repository.CourtRepository;
 import com.codewithvy.quanlydatsan.repository.UserRepository;
 import com.codewithvy.quanlydatsan.security.UserDetailsImpl;
 import com.codewithvy.quanlydatsan.service.BookingService;
+import com.codewithvy.quanlydatsan.service.FileStorageService;
 import com.codewithvy.quanlydatsan.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -27,9 +29,9 @@ public class BookingServiceImpl implements BookingService {
     private final UserRepository userRepository;
     private final CourtRepository courtRepository;
     private final NotificationService notificationService;
-
-    // Thời gian hết hạn thanh toán (15 phút)
-    private static final int PAYMENT_EXPIRE_MINUTES = 15;
+    private final FileStorageService fileStorageService;
+    // Thời gian hết hạn thanh toán (5 phút) - có thể thay đổi theo nhu cầu
+    private static final int PAYMENT_EXPIRE_MINUTES = 5;
 
     @Override
     @Transactional
@@ -39,6 +41,19 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         Court court = courtRepository.findById(bookingRequest.getCourtId())
                 .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
+
+        // VALIDATION: Kiểm tra thời gian hợp lệ
+        LocalDateTime now = LocalDateTime.now();
+
+        if (bookingRequest.getStartTime().isBefore(now)) {
+            throw new IllegalArgumentException("Thời gian bắt đầu phải sau thời điểm hiện tại");
+        }
+        if (bookingRequest.getEndTime().isBefore(bookingRequest.getStartTime())) {
+            throw new IllegalArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu");
+        }
+        if (bookingRequest.getEndTime().isBefore(now)) {
+            throw new IllegalArgumentException("Thời gian kết thúc phải sau thời điểm hiện tại");
+        }
 
         // Kiểm tra sân đã bị đặt chưa (bao gồm cả các booking PENDING_PAYMENT)
         List<Booking> overlappingBookings = bookingRepository.findOverlappingBookings(
@@ -78,26 +93,30 @@ public class BookingServiceImpl implements BookingService {
 
         User currentUser = getCurrentUser();
         if (!booking.getUser().getId().equals(currentUser.getId())) {
-            throw new SecurityException("You don't have permission to confirm this booking");
+            throw new SecurityException("Bạn không có quyền confirm booking này");
         }
 
         if (booking.getStatus() != BookingStatus.PENDING_PAYMENT) {
-            throw new IllegalStateException("Booking is not in pending payment status");
+            throw new IllegalStateException("Booking không ở trạng thái PENDING_PAYMENT");
         }
 
         if (LocalDateTime.now().isAfter(booking.getExpireTime())) {
-            throw new IllegalStateException("Booking has expired. Please create a new booking.");
+            booking.setStatus(BookingStatus.EXPIRED);
+            bookingRepository.save(booking);
+            throw new IllegalStateException("Booking đã hết hạn. Vui lòng tạo booking mới.");
         }
 
-        // Cập nhật thông tin chứng minh chuyển khoản
-        booking.setPaymentProofUrl(request.getPaymentProofUrl());
-        booking.setPaymentProofUploaded(true);
-        booking.setPaymentProofUploadedAt(LocalDateTime.now());
+        // KIỂM TRA: User phải upload ảnh trước khi confirm
+        if (!booking.getPaymentProofUploaded() || booking.getPaymentProofUrl() == null) {
+            throw new IllegalStateException("Vui lòng upload ảnh chuyển khoản trước khi xác nhận thanh toán");
+        }
+
+        // Cập nhật status thành PAYMENT_UPLOADED
         booking.setStatus(BookingStatus.PAYMENT_UPLOADED);
 
         Booking savedBooking = bookingRepository.save(booking);
 
-        // Gửi thông báo cho chủ sân
+        // GỬI THÔNG BÁO CHO CHỦ SÂN
         User owner = booking.getCourt().getVenues().getOwner();
         notificationService.createNotification(
                 owner,
@@ -247,6 +266,48 @@ public class BookingServiceImpl implements BookingService {
 
         Booking updatedBooking = bookingRepository.save(booking);
         return mapToBookingResponse(updatedBooking);
+    }
+
+    @Override
+    @Transactional
+    public BookingResponse uploadPaymentProof(Long bookingId, MultipartFile file) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+
+        User currentUser = getCurrentUser();
+        if (!booking.getUser().getId().equals(currentUser.getId())) {
+            throw new SecurityException("Bạn không có quyền upload ảnh cho booking này");
+        }
+
+        if (booking.getStatus() != BookingStatus.PENDING_PAYMENT) {
+            throw new IllegalStateException("Chỉ có thể upload ảnh khi booking đang ở trạng thái PENDING_PAYMENT");
+        }
+
+        if (LocalDateTime.now().isAfter(booking.getExpireTime())) {
+            booking.setStatus(BookingStatus.EXPIRED);
+            bookingRepository.save(booking);
+            throw new IllegalStateException("Booking đã hết hạn. Vui lòng tạo booking mới.");
+        }
+
+        // Xóa ảnh cũ nếu có
+        if (booking.getPaymentProofUrl() != null) {
+            fileStorageService.deletePaymentProofImage(booking.getPaymentProofUrl());
+        }
+
+        // Lưu file mới
+        String fileUrl = fileStorageService.savePaymentProofImage(file, bookingId);
+
+        // Cập nhật booking - CHỈ LƯU ẢNH, CHƯA THAY ĐỔI STATUS
+        booking.setPaymentProofUrl(fileUrl);
+        booking.setPaymentProofUploaded(true);
+        booking.setPaymentProofUploadedAt(LocalDateTime.now());
+        // KHÔNG thay đổi status ở đây - vẫn giữ PENDING_PAYMENT
+
+        Booking savedBooking = bookingRepository.save(booking);
+
+        // KHÔNG gửi thông báo ở đây - chờ user nhấn Confirm Payment
+
+        return mapToBookingResponse(savedBooking);
     }
 
     private BookingResponse mapToBookingResponse(Booking booking) {

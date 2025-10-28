@@ -28,7 +28,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -114,7 +113,6 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @Transactional
     @Operation(
         summary = "Đăng ký tài khoản mới",
         description = "Tạo tài khoản người dùng mới với vai trò mặc định là ROLE_USER"
@@ -131,15 +129,48 @@ public class AuthController {
     })
     public ResponseEntity<ApiResponse<String>> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
         logger.info("Register request received: {}", signUpRequest);
+
+        // Kiểm tra mật khẩu khớp
         if (!signUpRequest.getPassword().equals(signUpRequest.getConfirmPassword())) {
+            logger.warn("Password mismatch for phone: {}", signUpRequest.getPhone());
             return ResponseEntity.badRequest().body(ApiResponse.fail("Passwords do not match"));
         }
-        if (userRepository.existsByPhone(signUpRequest.getPhone())) {
+
+        // Kiểm tra phone tồn tại - có log chi tiết
+        boolean phoneExists = userRepository.existsByPhone(signUpRequest.getPhone());
+        logger.info("Checking phone: {} - exists: {}", signUpRequest.getPhone(), phoneExists);
+
+        if (phoneExists) {
+            // Tìm user để log thông tin
+            Optional<User> existingUser = userRepository.findByPhone(signUpRequest.getPhone());
+            if (existingUser.isPresent()) {
+                logger.warn("Phone {} already exists - User ID: {}, Email: {}",
+                    signUpRequest.getPhone(), existingUser.get().getId(), existingUser.get().getEmail());
+            } else {
+                logger.error("Phone {} exists but findByPhone returns empty - possible data inconsistency!",
+                    signUpRequest.getPhone());
+            }
             return ResponseEntity.badRequest().body(ApiResponse.fail("Phone is already in use"));
         }
-        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+
+        // Kiểm tra email tồn tại - có log chi tiết
+        boolean emailExists = userRepository.existsByEmail(signUpRequest.getEmail());
+        logger.info("Checking email: {} - exists: {}", signUpRequest.getEmail(), emailExists);
+
+        if (emailExists) {
+            Optional<User> existingUser = userRepository.findByEmail(signUpRequest.getEmail());
+            if (existingUser.isPresent()) {
+                logger.warn("Email {} already exists - User ID: {}, Phone: {}",
+                    signUpRequest.getEmail(), existingUser.get().getId(), existingUser.get().getPhone());
+            } else {
+                logger.error("Email {} exists but findByEmail returns empty - possible data inconsistency!",
+                    signUpRequest.getEmail());
+            }
             return ResponseEntity.badRequest().body(ApiResponse.fail("Email is already in use"));
         }
+
+        logger.info("Creating new user with phone: {} and email: {}",
+            signUpRequest.getPhone(), signUpRequest.getEmail());
 
         User user = new User();
         user.setFullname(signUpRequest.getFullname());
@@ -155,7 +186,8 @@ public class AuthController {
         roles.add(userRole);
         user.setRoles(roles);
 
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        logger.info("User registered successfully - ID: {}, Phone: {}", savedUser.getId(), savedUser.getPhone());
 
         return ResponseEntity.ok(ApiResponse.ok("User registered successfully", "Registered"));
     }

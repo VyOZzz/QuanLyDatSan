@@ -2,10 +2,18 @@ package com.codewithvy.quanlydatsan.controller;
 
 import com.codewithvy.quanlydatsan.dto.*;
 import com.codewithvy.quanlydatsan.service.BookingService;
+import com.codewithvy.quanlydatsan.service.FileStorageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -14,16 +22,18 @@ import java.util.List;
 public class BookingController {
 
     private final BookingService bookingService;
+    private final FileStorageService fileStorageService;
 
-    public BookingController(BookingService bookingService) {
+    public BookingController(BookingService bookingService, FileStorageService fileStorageService) {
         this.bookingService = bookingService;
+        this.fileStorageService = fileStorageService;
     }
 
     @PostMapping
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ApiResponse<BookingResponse>> createBooking(@Valid @RequestBody BookingRequest bookingRequest) {
         BookingResponse bookingResponse = bookingService.createBooking(bookingRequest);
-        return ResponseEntity.ok(ApiResponse.ok(bookingResponse, "Đặt sân thành công. Vui lòng chuyển khoản trong 15 phút."));
+        return ResponseEntity.ok(ApiResponse.ok(bookingResponse, "Đặt sân thành công. Vui lòng chuyển khoản trong 5 phút."));
     }
 
     @PutMapping("/{id}/confirm-payment")
@@ -84,5 +94,25 @@ public class BookingController {
     public ResponseEntity<ApiResponse<BookingResponse>> cancelBooking(@PathVariable Long id) {
         BookingResponse bookingResponse = bookingService.cancelBooking(id);
         return ResponseEntity.ok(ApiResponse.ok(bookingResponse, "Booking cancelled successfully"));
+    }
+
+    @PostMapping("/{id}/upload-payment-proof")
+    @PreAuthorize("hasRole('USER')")
+    @Operation(
+        summary = "Upload ảnh chứng minh chuyển khoản",
+        description = "Upload ảnh chụp màn hình đã chuyển khoản. Chỉ chấp nhận file ảnh jpg, jpeg, png (max 10MB)"
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+        content = @Content(
+            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+            schema = @Schema(implementation = FileUploadRequest.class)
+        )
+    )
+    public ResponseEntity<ApiResponse<BookingResponse>> uploadPaymentProof(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        BookingResponse bookingResponse = bookingService.uploadPaymentProof(id, file);
+        return ResponseEntity.ok(ApiResponse.ok(bookingResponse,
+            "Đã upload ảnh thành công. Vui lòng nhấn 'Xác nhận thanh toán' để gửi cho chủ sân."));
     }
 }

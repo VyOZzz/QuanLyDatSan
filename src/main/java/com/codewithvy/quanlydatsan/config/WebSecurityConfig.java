@@ -82,6 +82,8 @@ public class WebSecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/courts", "/api/courts/", "/api/courts/**").permitAll()
                 // Cho phép xem reviews công khai
                 .requestMatchers(HttpMethod.GET, "/api/venues/*/reviews").permitAll()
+                // Cho phép truy cập các file ảnh chuyển khoản
+                .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
                 // Cho phép truy cập Swagger/OpenAPI UI và docs
                 // NOTE: application.properties config uses /api-docs and /swagger-ui.html; add those to permit list
                 .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**", "/swagger-ui.html", "/swagger-ui/index.html",
