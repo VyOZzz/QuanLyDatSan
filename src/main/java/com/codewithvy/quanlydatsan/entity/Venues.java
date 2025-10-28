@@ -28,8 +28,18 @@ public class Venues {
     @Column(nullable = false)
     private String name; // tên địa điểm
 
+    // Gộp từ VenuesDetail
+    @Column
+    private String title; // tiêu đề mô tả
+
     @Column(columnDefinition = "TEXT")
     private String description; // mô tả về venues
+
+    // Danh sách ảnh (gộp từ VenuesDetail)
+    @ElementCollection
+    @CollectionTable(name = "venues_images", joinColumns = @JoinColumn(name = "venue_id"))
+    @Column(name = "image")
+    private List<String> images = new ArrayList<>();
 
     @Column
     private String phoneNumber; // số điện thoại liên hệ
@@ -50,9 +60,11 @@ public class Venues {
     @JoinColumn(name = "address_id", nullable = false)
     private Address address; // địa chỉ nơi venues tọa lạc
 
+    // Giữ lại VenuesDetail để tương thích ngược (đánh dấu @Deprecated)
+    @Deprecated
     @OneToOne(mappedBy = "venues", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference // parent side of 1-1 to allow VenuesDetail to use back reference
-    private VenuesDetail venuesDetail; // thông tin chi tiết (mô tả, hình ảnh)
+    private VenuesDetail venuesDetail; // thông tin chi tiết (sẽ xóa trong tương lai)
 
     @OneToMany(mappedBy = "venues", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference("venues-pricerules") // Đặt tên khác để tránh xung đột

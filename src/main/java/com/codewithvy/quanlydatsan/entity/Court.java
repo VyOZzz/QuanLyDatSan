@@ -21,8 +21,6 @@ public class Court {
 
     private String description; // mô tả sân
 
-    private boolean isBooked; // trạng thái đã được đặt hay chưa (đơn giản hoá)
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venues_id", nullable = false)
     @JsonBackReference // back reference to avoid cyclic serialization (child -> parent)

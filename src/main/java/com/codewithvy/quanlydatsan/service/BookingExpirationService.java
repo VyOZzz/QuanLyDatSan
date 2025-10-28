@@ -2,10 +2,8 @@ package com.codewithvy.quanlydatsan.service;
 
 import com.codewithvy.quanlydatsan.entity.Booking;
 import com.codewithvy.quanlydatsan.entity.BookingStatus;
-import com.codewithvy.quanlydatsan.entity.Court;
 import com.codewithvy.quanlydatsan.entity.NotificationType;
 import com.codewithvy.quanlydatsan.repository.BookingRepository;
-import com.codewithvy.quanlydatsan.repository.CourtRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,7 +22,6 @@ import java.util.List;
 public class BookingExpirationService {
 
     private final BookingRepository bookingRepository;
-    private final CourtRepository courtRepository;
     private final NotificationService notificationService;
 
     /**
@@ -49,11 +46,7 @@ public class BookingExpirationService {
                     // Đổi status sang EXPIRED
                     booking.setStatus(BookingStatus.EXPIRED);
 
-                    // GIẢI PHÓNG SÂN - cho phép người khác đặt
-                    Court court = booking.getCourt();
-                    court.setBooked(false);
-                    courtRepository.save(court);
-
+                    // KHÔNG CẦN giải phóng sân - kiểm tra availability dựa vào BookingItem
                     bookingRepository.save(booking);
 
                     // Gửi thông báo cho người dùng
@@ -97,11 +90,7 @@ public class BookingExpirationService {
                     // Đổi status sang COMPLETED
                     booking.setStatus(BookingStatus.COMPLETED);
 
-                    // GIẢI PHÓNG SÂN - cho phép người khác đặt
-                    Court court = booking.getCourt();
-                    court.setBooked(false);
-                    courtRepository.save(court);
-
+                    // KHÔNG CẦN giải phóng sân - kiểm tra availability dựa vào BookingItem
                     bookingRepository.save(booking);
 
                     log.info("Completed booking ID: {}", booking.getId());

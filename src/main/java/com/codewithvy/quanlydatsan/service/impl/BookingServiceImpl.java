@@ -4,12 +4,14 @@ import com.codewithvy.quanlydatsan.dto.*;
 import com.codewithvy.quanlydatsan.entity.*;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
 import com.codewithvy.quanlydatsan.repository.BookingRepository;
+import com.codewithvy.quanlydatsan.repository.BookingItemRepository;
 import com.codewithvy.quanlydatsan.repository.CourtRepository;
 import com.codewithvy.quanlydatsan.repository.UserRepository;
 import com.codewithvy.quanlydatsan.security.UserDetailsImpl;
 import com.codewithvy.quanlydatsan.service.BookingService;
 import com.codewithvy.quanlydatsan.service.FileStorageService;
 import com.codewithvy.quanlydatsan.service.NotificationService;
+import com.codewithvy.quanlydatsan.service.PriceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -26,10 +28,13 @@ import java.util.stream.Collectors;
 public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
+    private final BookingItemRepository bookingItemRepository;
     private final UserRepository userRepository;
     private final CourtRepository courtRepository;
     private final NotificationService notificationService;
     private final FileStorageService fileStorageService;
+    private final PriceService priceService;
+
     // Thời gian hết hạn thanh toán (5 phút) - có thể thay đổi theo nhu cầu
     private static final int PAYMENT_EXPIRE_MINUTES = 5;
 
@@ -55,33 +60,39 @@ public class BookingServiceImpl implements BookingService {
             throw new IllegalArgumentException("Thời gian kết thúc phải sau thời điểm hiện tại");
         }
 
-        // Kiểm tra sân đã bị đặt chưa (bao gồm cả các booking PENDING_PAYMENT)
-        List<Booking> overlappingBookings = bookingRepository.findOverlappingBookings(
-                bookingRequest.getCourtId(), bookingRequest.getStartTime(), bookingRequest.getEndTime());
-        if (!overlappingBookings.isEmpty()) {
+        // Kiểm tra sân đã bị đặt chưa (check trong BookingItem thay vì Booking)
+        boolean hasConflict = bookingItemRepository.existsConflictingBooking(
+                court, bookingRequest.getStartTime(), bookingRequest.getEndTime());
+        if (hasConflict) {
             throw new IllegalStateException("Sân đã được đặt trong khung giờ này. Vui lòng chọn khung giờ khác.");
         }
 
-        // Tính giá tiền (đơn giản: 100,000 VND/giờ)
-        long hours = Duration.between(bookingRequest.getStartTime(), bookingRequest.getEndTime()).toHours();
-        double totalPrice = hours * 100000;
+        // Tính giá tiền theo PriceService
+        double totalPrice = priceService.calculateTotalCost(
+                court.getVenues().getId(),
+                bookingRequest.getStartTime(),
+                bookingRequest.getEndTime()
+        ).orElse(100000.0 * Duration.between(bookingRequest.getStartTime(), bookingRequest.getEndTime()).toHours());
 
         // Tạo booking mới với status PENDING_PAYMENT
         Booking booking = new Booking();
         booking.setUser(user);
-        booking.setCourt(court);
-        booking.setStartTime(bookingRequest.getStartTime());
-        booking.setEndTime(bookingRequest.getEndTime());
         booking.setTotalPrice(totalPrice);
         booking.setStatus(BookingStatus.PENDING_PAYMENT);
         booking.setExpireTime(LocalDateTime.now().plusMinutes(PAYMENT_EXPIRE_MINUTES));
         booking.setPaymentProofUploaded(false);
 
-        // KHÓA SÂN - Không ai đặt được trong khi pending
-        court.setBooked(true);
-        courtRepository.save(court);
-
         Booking savedBooking = bookingRepository.save(booking);
+
+        // Tạo BookingItem
+        BookingItem bookingItem = new BookingItem();
+        bookingItem.setBooking(savedBooking);
+        bookingItem.setCourt(court);
+        bookingItem.setStartTime(bookingRequest.getStartTime());
+        bookingItem.setEndTime(bookingRequest.getEndTime());
+        bookingItem.setPrice(totalPrice);
+        bookingItemRepository.save(bookingItem);
+
         return mapToBookingResponse(savedBooking);
     }
 
@@ -117,16 +128,19 @@ public class BookingServiceImpl implements BookingService {
         Booking savedBooking = bookingRepository.save(booking);
 
         // GỬI THÔNG BÁO CHO CHỦ SÂN
-        User owner = booking.getCourt().getVenues().getOwner();
-        notificationService.createNotification(
-                owner,
-                currentUser,
-                booking,
-                NotificationType.PAYMENT_UPLOADED,
-                "Có khách đã chuyển khoản",
-                String.format("Khách hàng %s đã chuyển khoản cho đơn đặt sân #%d tại %s. Vui lòng kiểm tra và xác nhận.",
-                        currentUser.getFullname(), booking.getId(), booking.getCourt().getVenues().getName())
-        );
+        List<BookingItem> items = bookingItemRepository.findByBookingId(savedBooking.getId());
+        if (!items.isEmpty()) {
+            User owner = items.get(0).getCourt().getVenues().getOwner();
+            notificationService.createNotification(
+                    owner,
+                    currentUser,
+                    booking,
+                    NotificationType.PAYMENT_UPLOADED,
+                    "Có khách đã chuyển khoản",
+                    String.format("Khách hàng %s đã chuyển khoản cho đơn đặt sân #%d tại %s. Vui lòng kiểm tra và xác nhận.",
+                            currentUser.getFullname(), booking.getId(), items.get(0).getCourt().getVenues().getName())
+            );
+        }
 
         return mapToBookingResponse(savedBooking);
     }
@@ -138,7 +152,11 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
 
         User currentUser = getCurrentUser();
-        User owner = booking.getCourt().getVenues().getOwner();
+        List<BookingItem> items = bookingItemRepository.findByBookingId(bookingId);
+        if (items.isEmpty()) {
+            throw new ResourceNotFoundException("No booking items found");
+        }
+        User owner = items.get(0).getCourt().getVenues().getOwner();
 
         if (!owner.getId().equals(currentUser.getId())) {
             throw new SecurityException("You don't have permission to accept this booking");
@@ -173,7 +191,11 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
 
         User currentUser = getCurrentUser();
-        User owner = booking.getCourt().getVenues().getOwner();
+        List<BookingItem> items = bookingItemRepository.findByBookingId(bookingId);
+        if (items.isEmpty()) {
+            throw new ResourceNotFoundException("No booking items found");
+        }
+        User owner = items.get(0).getCourt().getVenues().getOwner();
 
         if (!owner.getId().equals(currentUser.getId())) {
             throw new SecurityException("You don't have permission to reject this booking");
@@ -186,11 +208,6 @@ public class BookingServiceImpl implements BookingService {
         // Từ chối đặt sân
         booking.setStatus(BookingStatus.REJECTED);
         booking.setRejectionReason(request.getRejectionReason());
-
-        // GIẢI PHÓNG SÂN
-        Court court = booking.getCourt();
-        court.setBooked(false);
-        courtRepository.save(court);
 
         Booking savedBooking = bookingRepository.save(booking);
 
@@ -258,12 +275,6 @@ public class BookingServiceImpl implements BookingService {
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-
-        // GIẢI PHÓNG SÂN
-        Court court = booking.getCourt();
-        court.setBooked(false);
-        courtRepository.save(court);
-
         Booking updatedBooking = bookingRepository.save(booking);
         return mapToBookingResponse(updatedBooking);
     }
@@ -311,15 +322,13 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private BookingResponse mapToBookingResponse(Booking booking) {
+        // Lấy BookingItem đầu tiên để lấy thông tin court, startTime, endTime
+        List<BookingItem> items = bookingItemRepository.findByBookingId(booking.getId());
+
         BookingResponse.BookingResponseBuilder builder = BookingResponse.builder()
                 .id(booking.getId())
                 .userId(booking.getUser().getId())
                 .userName(booking.getUser().getFullname())
-                .courtId(booking.getCourt().getId())
-                .courtName("Sân " + booking.getCourt().getId())
-                .venuesName(booking.getCourt().getVenues().getName())
-                .startTime(booking.getStartTime())
-                .endTime(booking.getEndTime())
                 .totalPrice(booking.getTotalPrice())
                 .status(booking.getStatus())
                 .expireTime(booking.getExpireTime())
@@ -328,16 +337,26 @@ public class BookingServiceImpl implements BookingService {
                 .paymentProofUploadedAt(booking.getPaymentProofUploadedAt())
                 .rejectionReason(booking.getRejectionReason());
 
-        // Thêm thông tin tài khoản chủ sân nếu status là PENDING_PAYMENT
-        if (booking.getStatus() == BookingStatus.PENDING_PAYMENT) {
-            User owner = booking.getCourt().getVenues().getOwner();
-            OwnerBankInfoDTO bankInfo = OwnerBankInfoDTO.builder()
-                    .bankName(owner.getBankName())
-                    .bankAccountNumber(owner.getBankAccountNumber())
-                    .bankAccountName(owner.getBankAccountName())
-                    .ownerName(owner.getFullname())
-                    .build();
-            builder.ownerBankInfo(bankInfo);
+        // Thêm thông tin từ BookingItem nếu có
+        if (!items.isEmpty()) {
+            BookingItem firstItem = items.get(0);
+            builder.courtId(firstItem.getCourt().getId())
+                   .courtName("Sân " + firstItem.getCourt().getId())
+                   .venuesName(firstItem.getCourt().getVenues().getName())
+                   .startTime(firstItem.getStartTime())
+                   .endTime(firstItem.getEndTime());
+
+            // Thêm thông tin tài khoản chủ sân nếu status là PENDING_PAYMENT
+            if (booking.getStatus() == BookingStatus.PENDING_PAYMENT) {
+                User owner = firstItem.getCourt().getVenues().getOwner();
+                OwnerBankInfoDTO bankInfo = OwnerBankInfoDTO.builder()
+                        .bankName(owner.getBankName())
+                        .bankAccountNumber(owner.getBankAccountNumber())
+                        .bankAccountName(owner.getBankAccountName())
+                        .ownerName(owner.getFullname())
+                        .build();
+                builder.ownerBankInfo(bankInfo);
+            }
         }
 
         return builder.build();

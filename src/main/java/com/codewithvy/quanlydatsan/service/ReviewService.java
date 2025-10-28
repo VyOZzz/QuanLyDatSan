@@ -5,6 +5,7 @@ import com.codewithvy.quanlydatsan.dto.ReviewRequest;
 import com.codewithvy.quanlydatsan.entity.*;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
 import com.codewithvy.quanlydatsan.repository.BookingRepository;
+import com.codewithvy.quanlydatsan.repository.BookingItemRepository;
 import com.codewithvy.quanlydatsan.repository.ReviewRepository;
 import com.codewithvy.quanlydatsan.repository.UserRepository;
 import com.codewithvy.quanlydatsan.repository.VenuesRepository;
@@ -21,6 +22,7 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final BookingRepository bookingRepository;
+    private final BookingItemRepository bookingItemRepository;
     private final UserRepository userRepository;
     private final VenuesRepository venuesRepository;
     private final NotificationService notificationService;
@@ -54,8 +56,12 @@ public class ReviewService {
             throw new IllegalArgumentException("You have already reviewed this booking");
         }
 
-        // 6. Lấy thông tin venue từ court
-        Venues venue = booking.getCourt().getVenues();
+        // 6. Lấy thông tin venue từ BookingItem
+        List<BookingItem> items = bookingItemRepository.findByBookingId(bookingId);
+        if (items.isEmpty()) {
+            throw new ResourceNotFoundException("No booking items found for this booking");
+        }
+        Venues venue = items.get(0).getCourt().getVenues();
 
         // 7. Tạo review mới
         Review review = new Review();
