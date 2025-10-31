@@ -214,8 +214,8 @@ public class AuthController {
         // Tạo token (nếu email có tồn tại) và gửi – tránh lộ thông tin email tồn tại hay không.
         try {
             String token = passwordResetService.createTokenForEmail(request.getEmail());
-            emailService.sendPlainText(request.getEmail(), "Password Reset",
-                    "Mã đặt lại mật khẩu (token) của bạn: " + token + "\nToken hết hạn sau 15 phút.");
+            emailService.sendPlainText(request.getEmail(), "Mã Xác Nhận Đặt Lại Mật Khẩu",
+                    "Mã xác nhận đặt lại mật khẩu của bạn là: " + token + "\n\nMã này có hiệu lực trong 15 phút.\n\nVui lòng không chia sẻ mã này với bất kỳ ai.");
         } catch (ResourceNotFoundException ex) {
             // bỏ qua để tránh dò email
         }
