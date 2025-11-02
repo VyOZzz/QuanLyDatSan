@@ -47,6 +47,10 @@ public class Venues {
     @Column
     private String email; // email liên hệ
 
+    // Giá cố định theo giờ cho tất cả sân trong venues (VND)
+    @Column(nullable = false)
+    private Double pricePerHour = 100000.0; // Mặc định 100,000 VND/giờ
+
     // Chủ sân - người sở hữu venues (bắt buộc)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
@@ -65,10 +69,6 @@ public class Venues {
     @OneToOne(mappedBy = "venues", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference // parent side of 1-1 to allow VenuesDetail to use back reference
     private VenuesDetail venuesDetail; // thông tin chi tiết (sẽ xóa trong tương lai)
-
-    @OneToMany(mappedBy = "venues", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference("venues-pricerules") // Đặt tên khác để tránh xung đột
-    private List<PriceRules> priceRules = new ArrayList<>();
 
     // Đánh giá trung bình của venues (1-5 sao)
     @Column

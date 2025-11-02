@@ -4,9 +4,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Data;
-
-import java.util.List;
 
 @Data
 public class VenuesRequest {
@@ -25,7 +24,7 @@ public class VenuesRequest {
     @Valid
     private AddressDTO address; // Nhập trực tiếp thông tin địa chỉ
 
-    // Danh sách quy tắc giá (optional, chỉ dùng khi muốn cập nhật giá)
-    @Valid
-    private List<PriceRuleRequest> priceRules;
+    // Giá cố định theo giờ (VND)
+    @Positive(message = "Giá theo giờ phải lớn hơn 0")
+    private Double pricePerHour; // Optional khi update, bắt buộc khi create
 }

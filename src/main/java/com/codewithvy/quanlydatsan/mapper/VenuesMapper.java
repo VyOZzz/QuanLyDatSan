@@ -26,7 +26,9 @@ public class VenuesMapper {
                 .numberOfCourt(v.getNumberOfCourt())
                 .address(addressDTO)
                 .courtsCount(courtsCount)
+                .pricePerHour(v.getPricePerHour())
+                .averageRating(v.getAverageRating())
+                .totalReviews(v.getTotalReviews())
                 .build();
     }
 }
-

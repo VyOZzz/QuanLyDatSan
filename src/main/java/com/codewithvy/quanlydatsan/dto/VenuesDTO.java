@@ -15,5 +15,9 @@ public class VenuesDTO {
     private int numberOfCourt;
     private AddressDTO address;
     private Integer courtsCount; // tránh load toàn bộ courts
-}
+    private Double pricePerHour; // Giá cố định theo giờ (VND)
 
+    // Thông tin đánh giá
+    private Double averageRating; // Điểm trung bình (1-5 sao)
+    private Integer totalReviews; // Tổng số đánh giá
+}

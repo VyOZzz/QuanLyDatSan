@@ -1,17 +1,14 @@
 package com.codewithvy.quanlydatsan.service;
 
 import com.codewithvy.quanlydatsan.dto.AddressDTO;
-import com.codewithvy.quanlydatsan.dto.PriceRuleRequest;
 import com.codewithvy.quanlydatsan.dto.VenuesDTO;
 import com.codewithvy.quanlydatsan.dto.VenuesRequest;
 import com.codewithvy.quanlydatsan.entity.Address;
-import com.codewithvy.quanlydatsan.entity.PriceRules;
 import com.codewithvy.quanlydatsan.entity.User;
 import com.codewithvy.quanlydatsan.entity.Venues;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
 import com.codewithvy.quanlydatsan.mapper.VenuesMapper;
 import com.codewithvy.quanlydatsan.repository.AddressRepository;
-import com.codewithvy.quanlydatsan.repository.PriceRuleRepository;
 import com.codewithvy.quanlydatsan.repository.UserRepository;
 import com.codewithvy.quanlydatsan.repository.VenuesRepository;
 import org.slf4j.Logger;
@@ -31,14 +28,12 @@ public class VenuesService {
     private final VenuesRepository venuesRepository;
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
-    private final PriceRuleRepository priceRuleRepository;
 
     public VenuesService(VenuesRepository venuesRepository, AddressRepository addressRepository,
-                         UserRepository userRepository, PriceRuleRepository priceRuleRepository) {
+                         UserRepository userRepository) {
         this.venuesRepository = venuesRepository;
         this.addressRepository = addressRepository;
         this.userRepository = userRepository;
-        this.priceRuleRepository = priceRuleRepository;
     }
 
     public List<VenuesDTO> getAll() {
@@ -77,6 +72,11 @@ public class VenuesService {
             throw new IllegalArgumentException("Address is required");
         }
 
+        if (request.getPricePerHour() == null) {
+            log.error("PricePerHour is null in request");
+            throw new IllegalArgumentException("Price per hour is required");
+        }
+
         log.info("Address received - province: {}, district: {}, detail: {}",
                 request.getAddress().getProvinceOrCity(),
                 request.getAddress().getDistrict(),
@@ -101,8 +101,9 @@ public class VenuesService {
         v.setAddress(address);
         v.setOwner(currentUser); // SET OWNER - BẮT BUỘC
         v.setNumberOfCourt(0); // Khởi tạo = 0, sẽ tự động tăng khi thêm court
+        v.setPricePerHour(request.getPricePerHour()); // SET GIÁ
 
-        log.info("Saving venue: {}", v.getName());
+        log.info("Saving venue: {} with price: {}", v.getName(), v.getPricePerHour());
         Venues saved = venuesRepository.save(v);
         log.info("Venue saved successfully with id: {}", saved.getId());
 
@@ -136,10 +137,10 @@ public class VenuesService {
             existing.setAddress(newAddress);
         }
 
-        // Cập nhật price rules nếu có
-        if (request.getPriceRules() != null && !request.getPriceRules().isEmpty()) {
-            log.info("Updating price rules for venue id: {}", id);
-            updatePriceRules(existing, request.getPriceRules());
+        // Cập nhật giá nếu có
+        if (request.getPricePerHour() != null) {
+            log.info("Updating price for venue id: {} from {} to {}", id, existing.getPricePerHour(), request.getPricePerHour());
+            existing.setPricePerHour(request.getPricePerHour());
         }
 
         return VenuesMapper.toDto(existing); // managed entity auto flushed
@@ -177,32 +178,5 @@ public class VenuesService {
         log.info("Getting current user with phone: {}", phone);
         return userRepository.findByPhone(phone)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-    }
-
-    /**
-     * Cập nhật price rules cho venue.
-     * Xóa tất cả price rules cũ và tạo mới từ request.
-     */
-    private void updatePriceRules(Venues venue, List<PriceRuleRequest> priceRuleRequests) {
-        // Xóa tất cả price rules cũ
-        List<PriceRules> oldRules = priceRuleRepository.findByVenues(venue);
-        if (!oldRules.isEmpty()) {
-            log.info("Deleting {} old price rules", oldRules.size());
-            priceRuleRepository.deleteAll(oldRules);
-        }
-
-        // Tạo price rules mới
-        for (PriceRuleRequest request : priceRuleRequests) {
-            PriceRules priceRule = new PriceRules();
-            priceRule.setName(request.getName());
-            priceRule.setStartTime(request.getStartTime());
-            priceRule.setEndTime(request.getEndTime());
-            priceRule.setPricePerHour(request.getPricePerHour());
-            priceRule.setVenues(venue);
-            priceRule.setActive(true);
-
-            priceRuleRepository.save(priceRule);
-            log.info("Created new price rule: {} for venue id: {}", request.getName(), venue.getId());
-        }
     }
 }
