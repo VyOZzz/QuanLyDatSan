@@ -1,14 +1,17 @@
 package com.codewithvy.quanlydatsan.service;
 
 import com.codewithvy.quanlydatsan.dto.AddressDTO;
+import com.codewithvy.quanlydatsan.dto.PriceRuleRequest;
 import com.codewithvy.quanlydatsan.dto.VenuesDTO;
 import com.codewithvy.quanlydatsan.dto.VenuesRequest;
 import com.codewithvy.quanlydatsan.entity.Address;
+import com.codewithvy.quanlydatsan.entity.PriceRules;
 import com.codewithvy.quanlydatsan.entity.User;
 import com.codewithvy.quanlydatsan.entity.Venues;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
 import com.codewithvy.quanlydatsan.mapper.VenuesMapper;
 import com.codewithvy.quanlydatsan.repository.AddressRepository;
+import com.codewithvy.quanlydatsan.repository.PriceRuleRepository;
 import com.codewithvy.quanlydatsan.repository.UserRepository;
 import com.codewithvy.quanlydatsan.repository.VenuesRepository;
 import org.slf4j.Logger;
@@ -28,19 +31,22 @@ public class VenuesService {
     private final VenuesRepository venuesRepository;
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
+    private final PriceRuleRepository priceRuleRepository;
 
-    public VenuesService(VenuesRepository venuesRepository, AddressRepository addressRepository, UserRepository userRepository) {
+    public VenuesService(VenuesRepository venuesRepository, AddressRepository addressRepository,
+                         UserRepository userRepository, PriceRuleRepository priceRuleRepository) {
         this.venuesRepository = venuesRepository;
         this.addressRepository = addressRepository;
         this.userRepository = userRepository;
+        this.priceRuleRepository = priceRuleRepository;
     }
 
-    public List<VenuesDTO> getAll(){
+    public List<VenuesDTO> getAll() {
         return venuesRepository.findAll().stream().map(VenuesMapper::toDto).collect(Collectors.toList());
     }
 
-    public VenuesDTO getById(Long id){
-        Venues v = venuesRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Venues not found with id="+id));
+    public VenuesDTO getById(Long id) {
+        Venues v = venuesRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Venues not found with id=" + id));
         return VenuesMapper.toDto(v);
     }
 
@@ -56,25 +62,25 @@ public class VenuesService {
                 .stream().map(VenuesMapper::toDto).collect(Collectors.toList());
     }
 
-    private String normalize(String s){
-        if(s == null) return null;
+    private String normalize(String s) {
+        if (s == null) return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
     }
 
     @Transactional
-    public VenuesDTO create(VenuesRequest request){
+    public VenuesDTO create(VenuesRequest request) {
         log.info("Creating venue with request: {}", request);
 
-        if(request.getAddress() == null){
+        if (request.getAddress() == null) {
             log.error("Address is null in request");
             throw new IllegalArgumentException("Address is required");
         }
 
         log.info("Address received - province: {}, district: {}, detail: {}",
-            request.getAddress().getProvinceOrCity(),
-            request.getAddress().getDistrict(),
-            request.getAddress().getDetailAddress());
+                request.getAddress().getProvinceOrCity(),
+                request.getAddress().getDistrict(),
+                request.getAddress().getDetailAddress());
 
         // Tạo Address mới từ AddressDTO
         Address address = createAddressFromDTO(request.getAddress());
@@ -83,9 +89,9 @@ public class VenuesService {
         // Lấy user hiện tại làm owner
         User currentUser = getCurrentUser();
         log.info("Current user found: id={}, phone={}, roles={}",
-            currentUser.getId(),
-            currentUser.getPhone(),
-            currentUser.getRoles());
+                currentUser.getId(),
+                currentUser.getPhone(),
+                currentUser.getRoles());
 
         Venues v = new Venues();
         v.setName(request.getName());
@@ -104,39 +110,45 @@ public class VenuesService {
     }
 
     @Transactional
-    public VenuesDTO update(Long id, VenuesRequest request){
+    public VenuesDTO update(Long id, VenuesRequest request) {
         Venues existing = venuesRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Venues not found with id="+id));
+                .orElseThrow(() -> new ResourceNotFoundException("Venues not found with id=" + id));
 
-        if(request.getName() != null && !request.getName().isBlank()) {
+        if (request.getName() != null && !request.getName().isBlank()) {
             existing.setName(request.getName());
         }
 
-        if(request.getDescription() != null) {
+        if (request.getDescription() != null) {
             existing.setDescription(request.getDescription());
         }
 
-        if(request.getPhoneNumber() != null) {
+        if (request.getPhoneNumber() != null) {
             existing.setPhoneNumber(request.getPhoneNumber());
         }
 
-        if(request.getEmail() != null) {
+        if (request.getEmail() != null) {
             existing.setEmail(request.getEmail());
         }
 
-        if(request.getAddress() != null){
+        if (request.getAddress() != null) {
             // Tạo Address mới từ AddressDTO
             Address newAddress = createAddressFromDTO(request.getAddress());
             existing.setAddress(newAddress);
+        }
+
+        // Cập nhật price rules nếu có
+        if (request.getPriceRules() != null && !request.getPriceRules().isEmpty()) {
+            log.info("Updating price rules for venue id: {}", id);
+            updatePriceRules(existing, request.getPriceRules());
         }
 
         return VenuesMapper.toDto(existing); // managed entity auto flushed
     }
 
     @Transactional
-    public void delete(Long id){
-        if(!venuesRepository.existsById(id)){
-            throw new ResourceNotFoundException("Venues not found with id="+id);
+    public void delete(Long id) {
+        if (!venuesRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Venues not found with id=" + id);
         }
         venuesRepository.deleteById(id);
     }
@@ -165,5 +177,32 @@ public class VenuesService {
         log.info("Getting current user with phone: {}", phone);
         return userRepository.findByPhone(phone)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    /**
+     * Cập nhật price rules cho venue.
+     * Xóa tất cả price rules cũ và tạo mới từ request.
+     */
+    private void updatePriceRules(Venues venue, List<PriceRuleRequest> priceRuleRequests) {
+        // Xóa tất cả price rules cũ
+        List<PriceRules> oldRules = priceRuleRepository.findByVenues(venue);
+        if (!oldRules.isEmpty()) {
+            log.info("Deleting {} old price rules", oldRules.size());
+            priceRuleRepository.deleteAll(oldRules);
+        }
+
+        // Tạo price rules mới
+        for (PriceRuleRequest request : priceRuleRequests) {
+            PriceRules priceRule = new PriceRules();
+            priceRule.setName(request.getName());
+            priceRule.setStartTime(request.getStartTime());
+            priceRule.setEndTime(request.getEndTime());
+            priceRule.setPricePerHour(request.getPricePerHour());
+            priceRule.setVenues(venue);
+            priceRule.setActive(true);
+
+            priceRuleRepository.save(priceRule);
+            log.info("Created new price rule: {} for venue id: {}", request.getName(), venue.getId());
+        }
     }
 }

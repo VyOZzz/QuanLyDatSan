@@ -10,6 +10,7 @@ import com.codewithvy.quanlydatsan.repository.VenuesRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -30,11 +31,13 @@ public class CourtController {
     private BookingItemRepository bookingItemRepository;
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public List<Court> getAllCourts() {
         return courtRepository.findAll();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Court> getCourtById(@PathVariable Long id) {
         Optional<Court> court = courtRepository.findById(id);
         return court.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.<Court>notFound().build());
@@ -45,6 +48,7 @@ public class CourtController {
      * GET /api/courts/{id}/availability?startTime=...&endTime=...
      */
     @GetMapping("/{id}/availability")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> checkAvailability(
             @PathVariable Long id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
@@ -73,6 +77,7 @@ public class CourtController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<?> createCourt(@RequestBody CourtRequest request) {
         if (request.getVenueId() == null) {
             return ResponseEntity.badRequest().body("venueId is required");
@@ -101,6 +106,7 @@ public class CourtController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<Court> updateCourt(@PathVariable Long id, @RequestBody Court courtDetails) {
         return courtRepository.findById(id).map(court -> {
             // Xóa setBooked - không cần nữa
@@ -113,6 +119,7 @@ public class CourtController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<Void> deleteCourt(@PathVariable Long id) {
         Optional<Court> courtOpt = courtRepository.findById(id);
         if (courtOpt.isEmpty()) {

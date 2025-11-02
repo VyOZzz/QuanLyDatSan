@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class VenuesRequest {
     @NotBlank(message = "Tên sân không được để trống")
@@ -22,4 +24,8 @@ public class VenuesRequest {
     @NotNull(message = "Địa chỉ không được để trống")
     @Valid
     private AddressDTO address; // Nhập trực tiếp thông tin địa chỉ
+
+    // Danh sách quy tắc giá (optional, chỉ dùng khi muốn cập nhật giá)
+    @Valid
+    private List<PriceRuleRequest> priceRules;
 }

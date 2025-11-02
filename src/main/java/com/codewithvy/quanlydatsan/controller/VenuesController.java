@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,7 +30,12 @@ public class VenuesController {
     }
 
     @GetMapping
-    @Operation(summary = "Lấy danh sách tất cả venues", description = "Trả về danh sách tất cả các venues trong hệ thống")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+        summary = "Lấy danh sách tất cả venues",
+        description = "Trả về danh sách tất cả các venues trong hệ thống (yêu cầu đăng nhập)",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
     public ResponseEntity<ApiResponse<List<VenuesDTO>>> getAllVenues() {
         return ResponseEntity.ok(ApiResponse.ok(venuesService.getAll(), "List venues"));
     }
@@ -39,9 +45,11 @@ public class VenuesController {
      * VD: /api/venues/search?name=abc&province=Hanoi
      */
     @GetMapping("/search")
+    @PreAuthorize("isAuthenticated()")
     @Operation(
         summary = "Tìm kiếm venues",
-        description = "Tìm kiếm venues theo tên và/hoặc địa chỉ (tỉnh, quận, chi tiết). Tất cả tham số đều tùy chọn"
+        description = "Tìm kiếm venues theo tên và/hoặc địa chỉ (tỉnh, quận, chi tiết). Tất cả tham số đều tùy chọn (yêu cầu đăng nhập)",
+        security = @SecurityRequirement(name = "bearerAuth")
     )
     public ResponseEntity<ApiResponse<List<VenuesDTO>>> searchVenues(
             @Parameter(description = "Tên venue cần tìm") @RequestParam(name = "name", required = false) String name,
@@ -53,16 +61,22 @@ public class VenuesController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Lấy thông tin venue theo ID", description = "Trả về thông tin chi tiết của một venue")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+        summary = "Lấy thông tin venue theo ID",
+        description = "Trả về thông tin chi tiết của một venue (yêu cầu đăng nhập)",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
     public ResponseEntity<ApiResponse<VenuesDTO>> getVenuesById(
             @Parameter(description = "ID của venue", required = true) @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(venuesService.getById(id)));
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('OWNER')")
     @Operation(
         summary = "Tạo venue mới",
-        description = "Tạo một venue mới (yêu cầu xác thực)",
+        description = "Tạo một venue mới (yêu cầu ROLE_OWNER)",
         security = @SecurityRequirement(name = "bearerAuth")
     )
     public ResponseEntity<ApiResponse<VenuesDTO>> createVenues(@Valid @RequestBody VenuesRequest request) {
@@ -82,9 +96,10 @@ public class VenuesController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('OWNER')")
     @Operation(
         summary = "Cập nhật venue",
-        description = "Cập nhật thông tin venue theo ID (yêu cầu xác thực)",
+        description = "Cập nhật thông tin venue theo ID (yêu cầu ROLE_OWNER)",
         security = @SecurityRequirement(name = "bearerAuth")
     )
     public ResponseEntity<ApiResponse<VenuesDTO>> updateVenues(
@@ -95,9 +110,10 @@ public class VenuesController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('OWNER')")
     @Operation(
         summary = "Xóa venue",
-        description = "Xóa venue theo ID (yêu cầu xác thực)",
+        description = "Xóa venue theo ID (yêu cầu ROLE_OWNER)",
         security = @SecurityRequirement(name = "bearerAuth")
     )
     public ResponseEntity<ApiResponse<Void>> deleteVenues(

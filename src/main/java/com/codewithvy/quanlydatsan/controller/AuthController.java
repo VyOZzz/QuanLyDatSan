@@ -130,6 +130,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<String>> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
         logger.info("Register request received: {}", signUpRequest);
 
+
         // Kiểm tra mật khẩu khớp
         if (!signUpRequest.getPassword().equals(signUpRequest.getConfirmPassword())) {
             logger.warn("Password mismatch for phone: {}", signUpRequest.getPhone());
