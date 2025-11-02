@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Base64;
 
 @Service
 public class PasswordResetService {
@@ -32,10 +31,11 @@ public class PasswordResetService {
     public String createTokenForEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Email không tồn tại"));
-        // generate random 32 bytes -> base64url ~ 43 chars
-        byte[] random = new byte[32];
-        new SecureRandom().nextBytes(random);
-        String tokenStr = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+        // Tạo mã OTP 8 chữ số ngẫu nhiên (00000000 - 99999999)
+        SecureRandom random = new SecureRandom();
+        int otpNumber = random.nextInt(100000000); // 0 đến 99999999
+        String tokenStr = String.format("%08d", otpNumber); // Định dạng thành 8 chữ số, thêm số 0 ở đầu nếu cần
+
         PasswordResetToken token = new PasswordResetToken();
         token.setToken(tokenStr);
         token.setUser(user);

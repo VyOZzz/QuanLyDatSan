@@ -1,0 +1,1214 @@
+{
+	"info": {
+		"_postman_id": "booking-court-api-2025",
+		"name": "Booking Court API - Complete Collection",
+		"description": "Collection đầy đủ để test toàn bộ API của hệ thống đặt sân. Bao gồm:\n- Authentication (Đăng ký, Đăng nhập, Quên mật khẩu)\n- User Management (Nâng cấp vai trò, Cập nhật thông tin)\n- Venues (Quản lý sân)\n- Courts (Quản lý sân con)\n- Price Rules (Quản lý giá)\n- Bookings (Đặt sân, Xác nhận, Từ chối)\n- Reviews (Đánh giá)\n- Notifications (Thông báo)\n- File Upload (Upload ảnh chuyển khoản)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "venueId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "courtId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "bookingId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "priceRuleId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userPhone",
+			"value": "0123456789",
+			"type": "string"
+		},
+		{
+			"key": "userPassword",
+			"value": "password123",
+			"type": "string"
+		},
+		{
+			"key": "ownerPhone",
+			"value": "0987654321",
+			"type": "string"
+		},
+		{
+			"key": "ownerPassword",
+			"value": "owner123",
+			"type": "string"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "1.1 Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success) {",
+									"        pm.collectionVariables.set('userPhone', pm.request.body.raw ? JSON.parse(pm.request.body.raw).phone : '0123456789');",
+									"        console.log('✅ User registered successfully');",
+									"        pm.test('User registration successful', function() {",
+									"            pm.expect(jsonData.success).to.be.true;",
+									"        });",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test User\",\n    \"phone\": \"0123456789\",\n    \"password\": \"password123\",\n    \"email\": \"testuser@example.com\",\n    \"address\": \"123 Test Street\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Đăng ký tài khoản USER mới"
+					},
+					"response": []
+				},
+				{
+					"name": "1.2 Register Owner",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success) {",
+									"        pm.collectionVariables.set('ownerPhone', pm.request.body.raw ? JSON.parse(pm.request.body.raw).phone : '0987654321');",
+									"        console.log('✅ Owner registered successfully');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Owner\",\n    \"phone\": \"0987654321\",\n    \"password\": \"owner123\",\n    \"email\": \"testowner@example.com\",\n    \"address\": \"456 Owner Street\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Đăng ký tài khoản sẽ được nâng cấp lên OWNER"
+					},
+					"response": []
+				},
+				{
+					"name": "1.3 Login User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data.token) {",
+									"        pm.collectionVariables.set('token', jsonData.data.token);",
+									"        pm.collectionVariables.set('userId', jsonData.data.id);",
+									"        console.log('✅ User logged in successfully');",
+									"        console.log('Token saved:', jsonData.data.token.substring(0, 20) + '...');",
+									"        pm.test('Login successful', function() {",
+									"            pm.expect(jsonData.success).to.be.true;",
+									"            pm.expect(jsonData.data.token).to.exist;",
+									"        });",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\": \"{{userPhone}}\",\n    \"password\": \"{{userPassword}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Đăng nhập với tài khoản USER"
+					},
+					"response": []
+				},
+				{
+					"name": "1.4 Login Owner",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data.token) {",
+									"        pm.collectionVariables.set('token', jsonData.data.token);",
+									"        console.log('✅ Owner logged in successfully');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\": \"{{ownerPhone}}\",\n    \"password\": \"{{ownerPassword}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Đăng nhập với tài khoản OWNER"
+					},
+					"response": []
+				},
+				{
+					"name": "1.5 Forgot Password",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\": \"{{userPhone}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/forgot-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "forgot-password"]
+						},
+						"description": "Yêu cầu reset mật khẩu qua email"
+					},
+					"response": []
+				},
+				{
+					"name": "1.6 Reset Password",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"<token-from-email>\",\n    \"newPassword\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/reset-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "reset-password"]
+						},
+						"description": "Reset mật khẩu với token từ email"
+					},
+					"response": []
+				}
+			],
+			"description": "Các API liên quan đến xác thực và quản lý tài khoản"
+		},
+		{
+			"name": "2. User Management",
+			"item": [
+				{
+					"name": "2.1 Get Current User Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data) {",
+									"        console.log('✅ User info retrieved');",
+									"        console.log('Name:', jsonData.data.name);",
+									"        console.log('Roles:', jsonData.data.roles);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "me"]
+						},
+						"description": "Lấy thông tin user hiện tại"
+					},
+					"response": []
+				},
+				{
+					"name": "2.2 Update User Info",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Name\",\n    \"email\": \"updated@example.com\",\n    \"address\": \"New Address\",\n    \"bankName\": \"Vietcombank\",\n    \"bankAccountNumber\": \"1234567890\",\n    \"bankAccountName\": \"NGUYEN VAN A\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "me"]
+						},
+						"description": "Cập nhật thông tin user (bao gồm thông tin ngân hàng)"
+					},
+					"response": []
+				},
+				{
+					"name": "2.3 Request Owner Role",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success) {",
+									"        console.log('✅ Upgraded to OWNER role');",
+									"        console.log('⚠️ Please login again to get new token with OWNER role');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/me/request-owner-role",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "me", "request-owner-role"]
+						},
+						"description": "Nâng cấp từ USER lên OWNER (Trở thành chủ sân)"
+					},
+					"response": []
+				}
+			],
+			"description": "Các API quản lý thông tin người dùng"
+		},
+		{
+			"name": "3. Venues Management",
+			"item": [
+				{
+					"name": "3.1 Get All Venues",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data && jsonData.data.length > 0) {",
+									"        pm.collectionVariables.set('venueId', jsonData.data[0].id);",
+									"        console.log('✅ Venues retrieved, saved first venue ID:', jsonData.data[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/venues",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "venues"]
+						},
+						"description": "Lấy danh sách tất cả venues (không cần đăng nhập)"
+					},
+					"response": []
+				},
+				{
+					"name": "3.2 Search Venues",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/venues/search?name=&province=Hanoi&district=&detail=",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "venues", "search"],
+							"query": [
+								{
+									"key": "name",
+									"value": ""
+								},
+								{
+									"key": "province",
+									"value": "Hanoi"
+								},
+								{
+									"key": "district",
+									"value": ""
+								},
+								{
+									"key": "detail",
+									"value": ""
+								}
+							]
+						},
+						"description": "Tìm kiếm venues theo tên và địa chỉ"
+					},
+					"response": []
+				},
+				{
+					"name": "3.3 Get Venue By ID",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/venues/{{venueId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "venues", "{{venueId}}"]
+						},
+						"description": "Lấy thông tin chi tiết một venue"
+					},
+					"response": []
+				},
+				{
+					"name": "3.4 Create Venue",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data) {",
+									"        pm.collectionVariables.set('venueId', jsonData.data.id);",
+									"        console.log('✅ Venue created with ID:', jsonData.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Sân Bóng ABC\",\n    \"description\": \"Sân bóng đá chất lượng cao, có mái che\",\n    \"phoneNumber\": \"0901234567\",\n    \"openTime\": \"06:00\",\n    \"closeTime\": \"22:00\",\n    \"address\": {\n        \"provinceOrCity\": \"Hà Nội\",\n        \"district\": \"Cầu Giấy\",\n        \"wardOrCommune\": \"Dịch Vọng\",\n        \"detail\": \"123 Đường Cầu Giấy\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/venues",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "venues"]
+						},
+						"description": "Tạo venue mới (cần đăng nhập với OWNER role)"
+					},
+					"response": []
+				},
+				{
+					"name": "3.5 Update Venue",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Sân Bóng ABC - Updated\",\n    \"description\": \"Sân bóng đá chất lượng cao, có mái che, wifi miễn phí\",\n    \"phoneNumber\": \"0901234567\",\n    \"openTime\": \"05:00\",\n    \"closeTime\": \"23:00\",\n    \"address\": {\n        \"provinceOrCity\": \"Hà Nội\",\n        \"district\": \"Cầu Giấy\",\n        \"wardOrCommune\": \"Dịch Vọng\",\n        \"detail\": \"123 Đường Cầu Giấy\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/venues/{{venueId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "venues", "{{venueId}}"]
+						},
+						"description": "Cập nhật thông tin venue"
+					},
+					"response": []
+				},
+				{
+					"name": "3.6 Delete Venue",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/venues/{{venueId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "venues", "{{venueId}}"]
+						},
+						"description": "Xóa venue"
+					},
+					"response": []
+				}
+			],
+			"description": "Các API quản lý địa điểm/sân thể thao"
+		},
+		{
+			"name": "4. Courts Management",
+			"item": [
+				{
+					"name": "4.1 Get All Courts",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData && jsonData.length > 0) {",
+									"        pm.collectionVariables.set('courtId', jsonData[0].id);",
+									"        console.log('✅ Courts retrieved, saved first court ID:', jsonData[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/courts",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "courts"]
+						},
+						"description": "Lấy danh sách tất cả sân con"
+					},
+					"response": []
+				},
+				{
+					"name": "4.2 Get Court By ID",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/courts/{{courtId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "courts", "{{courtId}}"]
+						},
+						"description": "Lấy thông tin chi tiết một sân"
+					},
+					"response": []
+				},
+				{
+					"name": "4.3 Check Court Availability",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/courts/{{courtId}}/availability?startTime=2025-11-01T10:00:00&endTime=2025-11-01T12:00:00",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "courts", "{{courtId}}", "availability"],
+							"query": [
+								{
+									"key": "startTime",
+									"value": "2025-11-01T10:00:00"
+								},
+								{
+									"key": "endTime",
+									"value": "2025-11-01T12:00:00"
+								}
+							]
+						},
+						"description": "Kiểm tra lịch trống của sân trong khoảng thời gian"
+					},
+					"response": []
+				},
+				{
+					"name": "4.4 Create Court",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData && jsonData.id) {",
+									"        pm.collectionVariables.set('courtId', jsonData.id);",
+									"        console.log('✅ Court created with ID:', jsonData.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"venueId\": {{venueId}},\n    \"name\": \"Sân 1\",\n    \"courtType\": \"FOOTBALL_5\",\n    \"pricePerHour\": 300000\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/courts",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "courts"]
+						},
+						"description": "Tạo sân con mới. CourtType: FOOTBALL_5, FOOTBALL_7, FOOTBALL_11, BADMINTON, TENNIS, BASKETBALL, VOLLEYBALL"
+					},
+					"response": []
+				},
+				{
+					"name": "4.5 Update Court",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"venueId\": {{venueId}},\n    \"name\": \"Sân 1 - VIP\",\n    \"courtType\": \"FOOTBALL_5\",\n    \"pricePerHour\": 350000\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/courts/{{courtId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "courts", "{{courtId}}"]
+						},
+						"description": "Cập nhật thông tin sân"
+					},
+					"response": []
+				},
+				{
+					"name": "4.6 Delete Court",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/courts/{{courtId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "courts", "{{courtId}}"]
+						},
+						"description": "Xóa sân"
+					},
+					"response": []
+				}
+			],
+			"description": "Các API quản lý sân con"
+		},
+		{
+			"name": "5. Price Rules Management",
+			"item": [
+				{
+					"name": "5.1 Get Price Rules By Venue",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData && jsonData.length > 0) {",
+									"        pm.collectionVariables.set('priceRuleId', jsonData[0].id);",
+									"        console.log('✅ Price rules retrieved');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/pricerules/venue/{{venueId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "pricerules", "venue", "{{venueId}}"]
+						},
+						"description": "Lấy danh sách quy tắc giá của venue"
+					},
+					"response": []
+				},
+				{
+					"name": "5.2 Create Price Rule",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData && jsonData.id) {",
+									"        pm.collectionVariables.set('priceRuleId', jsonData.id);",
+									"        console.log('✅ Price rule created with ID:', jsonData.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"venueId\": {{venueId}},\n    \"name\": \"Giờ vàng buổi sáng\",\n    \"startTime\": \"06:00\",\n    \"endTime\": \"09:00\",\n    \"pricePerHour\": 250000\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/pricerules",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "pricerules"]
+						},
+						"description": "Tạo quy tắc giá mới (cần OWNER role)"
+					},
+					"response": []
+				},
+				{
+					"name": "5.3 Update Price Rule",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Giờ vàng buổi sáng - Updated\",\n    \"startTime\": \"06:00\",\n    \"endTime\": \"10:00\",\n    \"pricePerHour\": 280000,\n    \"active\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/pricerules/{{priceRuleId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "pricerules", "{{priceRuleId}}"]
+						},
+						"description": "Cập nhật quy tắc giá"
+					},
+					"response": []
+				},
+				{
+					"name": "5.4 Delete Price Rule",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/pricerules/{{priceRuleId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "pricerules", "{{priceRuleId}}"]
+						},
+						"description": "Xóa quy tắc giá"
+					},
+					"response": []
+				}
+			],
+			"description": "Các API quản lý quy tắc giá theo giờ"
+		},
+		{
+			"name": "6. Bookings Management",
+			"item": [
+				{
+					"name": "6.1 Create Booking",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data) {",
+									"        pm.collectionVariables.set('bookingId', jsonData.data.id);",
+									"        console.log('✅ Booking created with ID:', jsonData.data.id);",
+									"        console.log('Total amount:', jsonData.data.totalAmount);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Tạo thời gian booking trong tương lai",
+									"var now = new Date();",
+									"var tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);",
+									"",
+									"// Set thời gian 10:00 sáng",
+									"var startTime = new Date(tomorrow);",
+									"startTime.setHours(10, 0, 0, 0);",
+									"",
+									"// Set thời gian 12:00 trưa",
+									"var endTime = new Date(tomorrow);",
+									"endTime.setHours(12, 0, 0, 0);",
+									"",
+									"pm.collectionVariables.set('bookingStartTime', startTime.toISOString());",
+									"pm.collectionVariables.set('bookingEndTime', endTime.toISOString());"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"venueId\": {{venueId}},\n    \"bookingItems\": [\n        {\n            \"courtId\": {{courtId}},\n            \"startTime\": \"{{bookingStartTime}}\",\n            \"endTime\": \"{{bookingEndTime}}\"\n        }\n    ],\n    \"note\": \"Đặt sân cho đội bóng công ty\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings"]
+						},
+						"description": "Tạo booking mới (cần USER role)"
+					},
+					"response": []
+				},
+				{
+					"name": "6.2 Get Booking By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings", "{{bookingId}}"]
+						},
+						"description": "Lấy thông tin chi tiết booking"
+					},
+					"response": []
+				},
+				{
+					"name": "6.3 Get My Bookings",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/my-bookings",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings", "my-bookings"]
+						},
+						"description": "Lấy danh sách booking của user hiện tại"
+					},
+					"response": []
+				},
+				{
+					"name": "6.4 Confirm Payment (Upload Proof)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"paymentProofUrl\": \"https://example.com/payment-proof.jpg\",\n    \"note\": \"Đã chuyển khoản lúc 10:30 ngày 01/11/2025\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}/confirm-payment",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings", "{{bookingId}}", "confirm-payment"]
+						},
+						"description": "User xác nhận đã chuyển khoản và gửi ảnh chứng minh"
+					},
+					"response": []
+				},
+				{
+					"name": "6.5 Get Pending Bookings (Owner)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/pending",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings", "pending"]
+						},
+						"description": "Owner lấy danh sách booking chờ xác nhận"
+					},
+					"response": []
+				},
+				{
+					"name": "6.6 Get Venue Bookings (Owner)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/venue/{{venueId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings", "venue", "{{venueId}}"]
+						},
+						"description": "Owner lấy danh sách booking của một venue"
+					},
+					"response": []
+				},
+				{
+					"name": "6.7 Accept Booking (Owner)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}/accept",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings", "{{bookingId}}", "accept"]
+						},
+						"description": "Owner xác nhận đồng ý booking"
+					},
+					"response": []
+				},
+				{
+					"name": "6.8 Reject Booking (Owner)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"Sân đã được đặt trước bởi khách hàng khác\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}/reject",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings", "{{bookingId}}", "reject"]
+						},
+						"description": "Owner từ chối booking"
+					},
+					"response": []
+				},
+				{
+					"name": "6.9 Cancel Booking (User)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}/cancel",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings", "{{bookingId}}", "cancel"]
+						},
+						"description": "User hủy booking của mình"
+					},
+					"response": []
+				}
+			],
+			"description": "Các API quản lý đặt sân"
+		},
+		{
+			"name": "7. Reviews Management",
+			"item": [
+				{
+					"name": "7.1 Create Review",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"rating\": 5,\n    \"comment\": \"Sân rất đẹp, chất lượng tốt, phục vụ nhiệt tình!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/{{bookingId}}/review",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "bookings", "{{bookingId}}", "review"]
+						},
+						"description": "Tạo đánh giá cho booking đã hoàn thành (USER role)"
+					},
+					"response": []
+				},
+				{
+					"name": "7.2 Get Venue Reviews",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/venues/{{venueId}}/reviews",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "venues", "{{venueId}}", "reviews"]
+						},
+						"description": "Lấy danh sách đánh giá của venue (công khai)"
+					},
+					"response": []
+				},
+				{
+					"name": "7.3 Get My Reviews",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/my-reviews",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "my-reviews"]
+						},
+						"description": "Lấy danh sách đánh giá của user hiện tại"
+					},
+					"response": []
+				}
+			],
+			"description": "Các API quản lý đánh giá và xếp hạng"
+		},
+		{
+			"name": "8. Notifications Management",
+			"item": [
+				{
+					"name": "8.1 Get My Notifications",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications"]
+						},
+						"description": "Lấy danh sách thông báo của user"
+					},
+					"response": []
+				},
+				{
+					"name": "8.2 Get Unread Count",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/unread-count",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", "unread-count"]
+						},
+						"description": "Lấy số lượng thông báo chưa đọc"
+					},
+					"response": []
+				},
+				{
+					"name": "8.3 Mark As Read",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/1/read",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", "1", "read"]
+						},
+						"description": "Đánh dấu thông báo là đã đọc"
+					},
+					"response": []
+				},
+				{
+					"name": "8.4 Mark All As Read",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/read-all",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", "read-all"]
+						},
+						"description": "Đánh dấu tất cả thông báo là đã đọc"
+					},
+					"response": []
+				},
+				{
+					"name": "8.5 Delete Notification",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notifications", "1"]
+						},
+						"description": "Xóa thông báo"
+					},
+					"response": []
+				}
+			],
+			"description": "Các API quản lý thông báo"
+		},
+		{
+			"name": "9. File Management",
+			"item": [
+				{
+					"name": "9.1 Get Payment Proof Image",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/files/payment-proofs/example.jpg",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "files", "payment-proofs", "example.jpg"]
+						},
+						"description": "Xem ảnh chứng minh chuyển khoản"
+					},
+					"response": []
+				}
+			],
+			"description": "Các API quản lý file (ảnh)"
+		}
+	]
+}
+
