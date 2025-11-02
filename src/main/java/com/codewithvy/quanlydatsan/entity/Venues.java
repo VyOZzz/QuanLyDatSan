@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -50,6 +51,13 @@ public class Venues {
     // Giá cố định theo giờ cho tất cả sân trong venues (VND)
     @Column(nullable = false)
     private Double pricePerHour = 100000.0; // Mặc định 100,000 VND/giờ
+
+    // Thời gian hoạt động
+    @Column(name = "opening_time")
+    private LocalTime openingTime; // Giờ mở cửa (VD: 06:00:00)
+
+    @Column(name = "closing_time")
+    private LocalTime closingTime; // Giờ đóng cửa (VD: 23:00:00)
 
     // Chủ sân - người sở hữu venues (bắt buộc)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

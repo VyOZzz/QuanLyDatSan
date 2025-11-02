@@ -1,11 +1,15 @@
 package com.codewithvy.quanlydatsan.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
+
+import java.time.LocalTime;
 
 @Data
 public class VenuesRequest {
@@ -27,4 +31,13 @@ public class VenuesRequest {
     // Giá cố định theo giờ (VND)
     @Positive(message = "Giá theo giờ phải lớn hơn 0")
     private Double pricePerHour; // Optional khi update, bắt buộc khi create
+
+    // Thời gian hoạt động
+    @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string", pattern = "HH:mm:ss", example = "06:00:00", description = "Giờ mở cửa")
+    private LocalTime openingTime;
+
+    @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string", pattern = "HH:mm:ss", example = "23:00:00", description = "Giờ đóng cửa")
+    private LocalTime closingTime;
 }

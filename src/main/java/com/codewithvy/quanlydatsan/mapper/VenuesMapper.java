@@ -29,6 +29,8 @@ public class VenuesMapper {
                 .pricePerHour(v.getPricePerHour())
                 .averageRating(v.getAverageRating())
                 .totalReviews(v.getTotalReviews())
+                .openingTime(v.getOpeningTime())
+                .closingTime(v.getClosingTime())
                 .build();
     }
 }

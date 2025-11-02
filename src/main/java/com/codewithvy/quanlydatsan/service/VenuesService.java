@@ -102,6 +102,8 @@ public class VenuesService {
         v.setOwner(currentUser); // SET OWNER - BẮT BUỘC
         v.setNumberOfCourt(0); // Khởi tạo = 0, sẽ tự động tăng khi thêm court
         v.setPricePerHour(request.getPricePerHour()); // SET GIÁ
+        v.setOpeningTime(request.getOpeningTime()); // SET THỜI GIAN MỞ CỬA
+        v.setClosingTime(request.getClosingTime()); // SET THỜI GIAN ĐÓNG CỬA
 
         log.info("Saving venue: {} with price: {}", v.getName(), v.getPricePerHour());
         Venues saved = venuesRepository.save(v);
@@ -141,6 +143,15 @@ public class VenuesService {
         if (request.getPricePerHour() != null) {
             log.info("Updating price for venue id: {} from {} to {}", id, existing.getPricePerHour(), request.getPricePerHour());
             existing.setPricePerHour(request.getPricePerHour());
+        }
+
+        // Cập nhật thời gian hoạt động nếu có
+        if (request.getOpeningTime() != null) {
+            existing.setOpeningTime(request.getOpeningTime());
+        }
+
+        if (request.getClosingTime() != null) {
+            existing.setClosingTime(request.getClosingTime());
         }
 
         return VenuesMapper.toDto(existing); // managed entity auto flushed
