@@ -105,6 +105,12 @@ public class VenuesService {
         v.setOpeningTime(request.getOpeningTime()); // SET THỜI GIAN MỞ CỬA
         v.setClosingTime(request.getClosingTime()); // SET THỜI GIAN ĐÓNG CỬA
 
+        // SET DANH SÁCH ẢNH
+        if (request.getImages() != null && !request.getImages().isEmpty()) {
+            v.setImages(request.getImages());
+            log.info("Setting {} images for venue", request.getImages().size());
+        }
+
         log.info("Saving venue: {} with price: {}", v.getName(), v.getPricePerHour());
         Venues saved = venuesRepository.save(v);
         log.info("Venue saved successfully with id: {}", saved.getId());
@@ -148,6 +154,15 @@ public class VenuesService {
         // Cập nhật thời gian hoạt động nếu có
         if (request.getOpeningTime() != null) {
             existing.setOpeningTime(request.getOpeningTime());
+        // Cập nhật danh sách ảnh nếu có
+        if (request.getImages() != null) {
+            existing.getImages().clear(); // Xóa ảnh cũ
+            if (!request.getImages().isEmpty()) {
+                existing.getImages().addAll(request.getImages()); // Thêm ảnh mới
+                log.info("Updated {} images for venue id: {}", request.getImages().size(), id);
+            }
+        }
+
         }
 
         if (request.getClosingTime() != null) {

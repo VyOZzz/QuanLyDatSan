@@ -40,4 +40,8 @@ public class VenuesRequest {
     @JsonFormat(pattern = "HH:mm:ss")
     @Schema(type = "string", pattern = "HH:mm:ss", example = "23:00:00", description = "Giờ đóng cửa")
     private LocalTime closingTime;
+
+    // Danh sách URL ảnh của venue
+    @Schema(description = "Danh sách URL ảnh của venue", example = "[\"https://example.com/image1.jpg\", \"https://example.com/image2.jpg\"]")
+    private java.util.List<String> images;
 }

@@ -37,7 +37,7 @@ public class Venues {
     private String description; // mô tả về venues
 
     // Danh sách ảnh (gộp từ VenuesDetail)
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "venues_images", joinColumns = @JoinColumn(name = "venue_id"))
     @Column(name = "image")
     private List<String> images = new ArrayList<>();
@@ -68,7 +68,7 @@ public class Venues {
     @JsonManagedReference // parent reference to allow serializing courts without cycle
     private List<Court> courts; // danh sách sân trực thuộc venues
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "address_id", nullable = false)
     private Address address; // địa chỉ nơi venues tọa lạc
 

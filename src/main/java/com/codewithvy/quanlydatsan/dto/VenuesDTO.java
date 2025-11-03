@@ -30,4 +30,7 @@ public class VenuesDTO {
 
     @JsonFormat(pattern = "HH:mm:ss")
     private LocalTime closingTime; // Giờ đóng cửa
+
+    // Danh sách ảnh của venue
+    private java.util.List<String> images;
 }

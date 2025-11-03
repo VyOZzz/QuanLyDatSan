@@ -19,7 +19,8 @@ public class VenuesMapper {
                     .detailAddress(address.getDetailAddress())
                     .build();
         }
-        Integer courtsCount = v.getCourts() != null ? v.getCourts().size() : 0;
+        // Dùng numberOfCourt thay vì getCourts().size() để tránh lazy loading
+        Integer courtsCount = v.getNumberOfCourt();
         return VenuesDTO.builder()
                 .id(v.getId())
                 .name(v.getName())
@@ -31,6 +32,7 @@ public class VenuesMapper {
                 .totalReviews(v.getTotalReviews())
                 .openingTime(v.getOpeningTime())
                 .closingTime(v.getClosingTime())
+                .images(v.getImages()) // Map danh sách ảnh
                 .build();
     }
 }
