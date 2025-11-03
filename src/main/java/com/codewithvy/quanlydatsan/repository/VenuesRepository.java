@@ -26,4 +26,9 @@ public interface VenuesRepository extends JpaRepository<Venues, Long> {
                         @Param("province") String province,
                         @Param("district") String district,
                         @Param("detail") String detail);
+
+    /**
+     * Tìm tất cả venues thuộc sở hữu của một owner cụ thể
+     */
+    List<Venues> findByOwnerId(Long ownerId);
 }

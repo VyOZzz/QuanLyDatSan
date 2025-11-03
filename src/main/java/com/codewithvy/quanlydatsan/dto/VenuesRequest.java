@@ -1,6 +1,7 @@
 package com.codewithvy.quanlydatsan.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
+import com.codewithvy.quanlydatsan.config.FlexibleLocalTimeDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -33,12 +34,12 @@ public class VenuesRequest {
     private Double pricePerHour; // Optional khi update, bắt buộc khi create
 
     // Thời gian hoạt động
-    @JsonFormat(pattern = "HH:mm:ss")
-    @Schema(type = "string", pattern = "HH:mm:ss", example = "06:00:00", description = "Giờ mở cửa")
+    @JsonDeserialize(using = FlexibleLocalTimeDeserializer.class)
+    @Schema(type = "string", example = "6 hoặc 06:00 hoặc 06:00:00", description = "Giờ mở cửa (hỗ trợ: 6, 06:00, 06:00:00)")
     private LocalTime openingTime;
 
-    @JsonFormat(pattern = "HH:mm:ss")
-    @Schema(type = "string", pattern = "HH:mm:ss", example = "23:00:00", description = "Giờ đóng cửa")
+    @JsonDeserialize(using = FlexibleLocalTimeDeserializer.class)
+    @Schema(type = "string", example = "23 hoặc 23:00 hoặc 23:00:00", description = "Giờ đóng cửa (hỗ trợ: 23, 23:00, 23:00:00)")
     private LocalTime closingTime;
 
     // Danh sách URL ảnh của venue

@@ -123,6 +123,12 @@ public class VenuesService {
         Venues existing = venuesRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Venues not found with id=" + id));
 
+        // Kiểm tra quyền sở hữu - chỉ owner của venue mới được phép sửa
+        User currentUser = getCurrentUser();
+        if (!existing.getOwner().getId().equals(currentUser.getId())) {
+            throw new IllegalArgumentException("Bạn không có quyền chỉnh sửa venue này");
+        }
+
         if (request.getName() != null && !request.getName().isBlank()) {
             existing.setName(request.getName());
         }
@@ -154,6 +160,12 @@ public class VenuesService {
         // Cập nhật thời gian hoạt động nếu có
         if (request.getOpeningTime() != null) {
             existing.setOpeningTime(request.getOpeningTime());
+        }
+
+        if (request.getClosingTime() != null) {
+            existing.setClosingTime(request.getClosingTime());
+        }
+
         // Cập nhật danh sách ảnh nếu có
         if (request.getImages() != null) {
             existing.getImages().clear(); // Xóa ảnh cũ
@@ -163,20 +175,21 @@ public class VenuesService {
             }
         }
 
-        }
-
-        if (request.getClosingTime() != null) {
-            existing.setClosingTime(request.getClosingTime());
-        }
 
         return VenuesMapper.toDto(existing); // managed entity auto flushed
     }
 
     @Transactional
     public void delete(Long id) {
-        if (!venuesRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Venues not found with id=" + id);
+        Venues existing = venuesRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Venues not found with id=" + id));
+
+        // Kiểm tra quyền sở hữu - chỉ owner của venue mới được phép xóa
+        User currentUser = getCurrentUser();
+        if (!existing.getOwner().getId().equals(currentUser.getId())) {
+            throw new IllegalArgumentException("Bạn không có quyền xóa venue này");
         }
+
         venuesRepository.deleteById(id);
     }
 
@@ -204,5 +217,17 @@ public class VenuesService {
         log.info("Getting current user with phone: {}", phone);
         return userRepository.findByPhone(phone)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    /**
+     * Lấy danh sách venues thuộc sở hữu của user hiện tại
+     */
+    public List<VenuesDTO> getMyVenues() {
+        User currentUser = getCurrentUser();
+        log.info("Getting venues for owner id: {}", currentUser.getId());
+        return venuesRepository.findByOwnerId(currentUser.getId())
+                .stream()
+                .map(VenuesMapper::toDto)
+                .collect(Collectors.toList());
     }
 }

@@ -37,7 +37,7 @@ public class Venues {
     private String description; // mô tả về venues
 
     // Danh sách ảnh (gộp từ VenuesDetail)
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection
     @CollectionTable(name = "venues_images", joinColumns = @JoinColumn(name = "venue_id"))
     @Column(name = "image")
     private List<String> images = new ArrayList<>();

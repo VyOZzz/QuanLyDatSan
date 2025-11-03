@@ -42,5 +42,24 @@ public class FileController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
                 .body(resource);
     }
-}
 
+    @GetMapping("/venue-images/{filename:.+}")
+    @Operation(
+        summary = "Xem ảnh venue",
+        description = "Endpoint để load và hiển thị ảnh venue"
+    )
+    public ResponseEntity<Resource> getVenueImage(@PathVariable String filename) {
+        Resource resource = fileStorageService.loadVenueImageAsResource(filename);
+
+        // Xác định content type
+        String contentType = "image/jpeg";
+        if (filename.toLowerCase().endsWith(".png")) {
+            contentType = "image/png";
+        }
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .body(resource);
+    }
+}
