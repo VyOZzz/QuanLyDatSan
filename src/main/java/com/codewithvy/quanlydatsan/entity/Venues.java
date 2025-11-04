@@ -71,11 +71,6 @@ public class Venues {
     @JoinColumn(name = "address_id", nullable = false)
     private Address address; // địa chỉ nơi venues tọa lạc
 
-    // Đánh giá trung bình của venues (1-5 sao)
-    @Column
-    private Double averageRating = 0.0;
-
-    // Tổng số đánh giá
-    @Column
-    private Integer totalReviews = 0;
+    // XÓA averageRating và totalReviews - sẽ tính toán động từ bảng review
+    // Tuân thủ chuẩn 3NF: không lưu dữ liệu dẫn xuất
 }

@@ -73,8 +73,7 @@ public class ReviewService {
 
         Review savedReview = reviewRepository.save(review);
 
-        // 8. Cập nhật averageRating và totalReviews của venue
-        updateVenueRating(venue.getId());
+        // 8. XÓA - Không cần cập nhật venue rating nữa, vì sẽ tính toán động
 
         // 9. Gửi thông báo cho chủ sân
         String title = "Đánh giá mới";
@@ -154,28 +153,9 @@ public class ReviewService {
             throw new IllegalArgumentException("You can only delete your own reviews");
         }
 
-        Long venueId = review.getVenues().getId();
         reviewRepository.delete(review);
 
-        // Cập nhật lại rating của venue
-        updateVenueRating(venueId);
-    }
-
-    /**
-     * Cập nhật averageRating và totalReviews của venue.
-     */
-    @Transactional
-    public void updateVenueRating(Long venueId) {
-        Venues venue = venuesRepository.findById(venueId)
-                .orElseThrow(() -> new ResourceNotFoundException("Venue not found"));
-
-        Double avgRating = reviewRepository.calculateAverageRating(venueId);
-        long totalReviews = reviewRepository.countByVenuesId(venueId);
-
-        venue.setAverageRating(avgRating != null ? avgRating : 0.0);
-        venue.setTotalReviews((int) totalReviews);
-
-        venuesRepository.save(venue);
+        // XÓA - Không cần cập nhật lại rating, vì tính toán động
     }
 
     /**
