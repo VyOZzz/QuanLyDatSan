@@ -3,7 +3,9 @@ package com.codewithvy.quanlydatsan.controller;
 import com.codewithvy.quanlydatsan.dto.ApiResponse;
 import com.codewithvy.quanlydatsan.dto.VenuesDTO;
 import com.codewithvy.quanlydatsan.dto.VenuesRequest;
+import com.codewithvy.quanlydatsan.entity.BookingItem;
 import com.codewithvy.quanlydatsan.entity.Court;
+import com.codewithvy.quanlydatsan.repository.BookingItemRepository;
 import com.codewithvy.quanlydatsan.repository.CourtRepository;
 import com.codewithvy.quanlydatsan.service.VenuesService;
 import com.codewithvy.quanlydatsan.service.FileStorageService;
@@ -18,9 +20,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/venues")
@@ -31,12 +38,14 @@ public class VenuesController {
     private final VenuesService venuesService;
     private final FileStorageService fileStorageService;
     private final CourtRepository courtRepository;
+    private final BookingItemRepository bookingItemRepository;
 
     public VenuesController(VenuesService venuesService, FileStorageService fileStorageService,
-                           CourtRepository courtRepository) {
+                           CourtRepository courtRepository, BookingItemRepository bookingItemRepository) {
         this.venuesService = venuesService;
         this.fileStorageService = fileStorageService;
         this.courtRepository = courtRepository;
+        this.bookingItemRepository = bookingItemRepository;
     }
 
     @GetMapping
@@ -93,21 +102,73 @@ public class VenuesController {
         return ResponseEntity.ok(ApiResponse.ok(venuesService.getById(id)));
     }
 
-    @GetMapping("/{id}/courts")
+    @GetMapping("/{venueId}/courts/availability")
     @PreAuthorize("isAuthenticated()")
     @Operation(
-        summary = "Lấy danh sách courts của venue",
-        description = "Trả về danh sách tất cả các courts thuộc venue này (yêu cầu đăng nhập)",
+        summary = "Lấy danh sách courts của venue với trạng thái",
+        description = "Trả về danh sách tất cả courts của venue kèm theo trạng thái available/unavailable trong khoảng thời gian cụ thể (yêu cầu đăng nhập)",
         security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ResponseEntity<ApiResponse<List<Court>>> getCourtsByVenueId(
-            @Parameter(description = "ID của venue", required = true) @PathVariable Long id) {
-        // Kiểm tra venue có tồn tại không
-        venuesService.getById(id); // Sẽ throw exception nếu không tìm thấy
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCourtsWithAvailability(
+            @Parameter(description = "ID của venue", required = true) @PathVariable Long venueId,
+            @Parameter(description = "Thời gian bắt đầu (ISO DateTime)", required = true)
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @Parameter(description = "Thời gian kết thúc (ISO DateTime)", required = true)
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
 
-        List<Court> courts = courtRepository.findByVenuesId(id);
-        log.info("Found {} courts for venue id: {}", courts.size(), id);
-        return ResponseEntity.ok(ApiResponse.ok(courts, "Courts of venue"));
+        // Kiểm tra venue tồn tại
+        VenuesDTO venue = venuesService.getById(venueId);
+
+        // Lấy danh sách courts của venue
+        List<Court> courts = courtRepository.findAll().stream()
+                .filter(court -> court.getVenues().getId().equals(venueId))
+                .collect(Collectors.toList());
+
+        // Map sang response với trạng thái availability
+        List<Map<String, Object>> courtsList = courts.stream().map(court -> {
+            // Kiểm tra court có bị đặt trong khoảng thời gian không
+            List<BookingItem> bookedSlots = bookingItemRepository.findBookedSlots(
+                court.getId(), startTime, endTime
+            );
+
+            Map<String, Object> courtInfo = new HashMap<>();
+            courtInfo.put("id", court.getId());
+            courtInfo.put("description", court.getDescription());
+            courtInfo.put("available", bookedSlots.isEmpty()); // ← Trạng thái available
+
+            // Thêm thông tin các slot đã đặt (nếu có)
+            if (!bookedSlots.isEmpty()) {
+                List<Map<String, Object>> slots = bookedSlots.stream().map(slot -> {
+                    Map<String, Object> slotInfo = new HashMap<>();
+                    slotInfo.put("startTime", slot.getStartTime());
+                    slotInfo.put("endTime", slot.getEndTime());
+                    slotInfo.put("bookingId", slot.getBooking().getId());
+                    return slotInfo;
+                }).collect(Collectors.toList());
+                courtInfo.put("bookedSlots", slots);
+            } else {
+                courtInfo.put("bookedSlots", new ArrayList<>());
+            }
+
+            return courtInfo;
+        }).collect(Collectors.toList());
+
+        // Thêm thông tin venue vào response
+        Map<String, Object> responseData = new HashMap<>();
+        responseData.put("venueId", venueId);
+        responseData.put("venueName", venue.getName());
+        responseData.put("timeRange", Map.of(
+            "startTime", startTime,
+            "endTime", endTime
+        ));
+        responseData.put("courts", courtsList);
+        responseData.put("totalCourts", courtsList.size());
+        responseData.put("availableCourts", courtsList.stream().filter(c -> (Boolean) c.get("available")).count());
+
+        log.info("Checked availability for venue {}: {} courts, {} available",
+            venueId, courtsList.size(), responseData.get("availableCourts"));
+
+        return ResponseEntity.ok(ApiResponse.ok(courtsList, "Courts with availability"));
     }
 
     @PostMapping

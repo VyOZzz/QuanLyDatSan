@@ -4,11 +4,13 @@ import com.codewithvy.quanlydatsan.dto.AddressDTO;
 import com.codewithvy.quanlydatsan.dto.VenuesDTO;
 import com.codewithvy.quanlydatsan.dto.VenuesRequest;
 import com.codewithvy.quanlydatsan.entity.Address;
+import com.codewithvy.quanlydatsan.entity.Court;
 import com.codewithvy.quanlydatsan.entity.User;
 import com.codewithvy.quanlydatsan.entity.Venues;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
 import com.codewithvy.quanlydatsan.mapper.VenuesMapper;
 import com.codewithvy.quanlydatsan.repository.AddressRepository;
+import com.codewithvy.quanlydatsan.repository.CourtRepository;
 import com.codewithvy.quanlydatsan.repository.UserRepository;
 import com.codewithvy.quanlydatsan.repository.VenuesRepository;
 import org.slf4j.Logger;
@@ -28,12 +30,14 @@ public class VenuesService {
     private final VenuesRepository venuesRepository;
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
+    private final CourtRepository courtRepository;
 
     public VenuesService(VenuesRepository venuesRepository, AddressRepository addressRepository,
-                         UserRepository userRepository) {
+                         UserRepository userRepository, CourtRepository courtRepository) {
         this.venuesRepository = venuesRepository;
         this.addressRepository = addressRepository;
         this.userRepository = userRepository;
+        this.courtRepository = courtRepository;
     }
 
     public List<VenuesDTO> getAll() {
@@ -114,6 +118,14 @@ public class VenuesService {
         log.info("Saving venue: {} with price: {}", v.getName(), v.getPricePerHour());
         Venues saved = venuesRepository.save(v);
         log.info("Venue saved successfully with id: {}", saved.getId());
+
+        // TỰ ĐỘNG TẠO COURTS nếu có numberOfCourt trong request
+        if (request.getNumberOfCourt() != null && request.getNumberOfCourt() > 0) {
+            log.info("Auto-creating {} courts for venue id: {}", request.getNumberOfCourt(), saved.getId());
+            createCourtsForVenue(saved, request.getNumberOfCourt());
+            saved.setNumberOfCourt(request.getNumberOfCourt());
+            venuesRepository.save(saved);
+        }
 
         return VenuesMapper.toDto(saved);
     }
@@ -207,6 +219,19 @@ public class VenuesService {
         Address saved = addressRepository.save(address);
         log.info("Address saved with id: {}", saved.getId());
         return saved;
+    }
+
+    /**
+     * Tự động tạo courts cho venue khi khởi tạo
+     */
+    private void createCourtsForVenue(Venues venue, int numberOfCourts) {
+        for (int i = 1; i <= numberOfCourts; i++) {
+            Court court = new Court();
+            court.setDescription("Sân số " + i);
+            court.setVenues(venue);
+            courtRepository.save(court);
+            log.info("Created court {} for venue id: {}", i, venue.getId());
+        }
     }
 
     /**
