@@ -795,18 +795,193 @@ const bookingResponse = await fetch('/api/bookings', {
 
 ---
 
-### 17. Delete Court
-**DELETE** `/courts/{id}`
+### 16.5. Get Courts by Venue ⭐ MỚI
+**GET** `/api/venues/{venueId}/courts`
 
-**Authentication Required:** ✅ Yes (ROLE_OWNER - chỉ chủ sở hữu sân)
+**Authentication Required:** ✅ Yes (Any authenticated user)
+
+**Mục đích:** Lấy danh sách tất cả các courts thuộc một venue cụ thể. Frontend cần API này để biết Court ID trước khi xóa hoặc hiển thị danh sách sân cho user chọn.
+
+**Path Parameters:**
+- `venueId` (required): ID của venue cần lấy danh sách courts
 
 **Response Success (200):**
 ```json
 {
   "success": true,
-  "data": null,
-  "message": "Deleted",
-  "timestamp": "2025-10-28T15:30:00Z"
+  "data": [
+    {
+      "id": 1,
+      "description": "Sân số 1 - VIP",
+      "venues": {
+        "id": 10,
+        "name": "Sân bóng ABC",
+        "numberOfCourt": 3,
+        "address": {...}
+      }
+    },
+    {
+      "id": 2,
+      "description": "Sân số 2 - Thường",
+      "venues": {
+        "id": 10,
+        "name": "Sân bóng ABC",
+        "numberOfCourt": 3,
+        "address": {...}
+      }
+    }
+  ],
+  "message": "Courts of venue",
+  "timestamp": "2025-11-04T20:30:00Z"
+}
+```
+
+**Response Error (404 Not Found):**
+```json
+{
+  "success": false,
+  "message": "Venues not found with id=999",
+  "timestamp": "2025-11-04T20:30:00Z"
+}
+```
+
+**Frontend Example:**
+```javascript
+// Lấy danh sách courts của venue
+async function getCourtsByVenue(venueId) {
+  const token = localStorage.getItem('token');
+  
+  const response = await fetch(`/api/venues/${venueId}/courts`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  const data = await response.json();
+  return data.data; // Array of courts
+}
+
+// Sử dụng
+const courts = await getCourtsByVenue(10);
+courts.forEach(court => {
+  console.log(`Court ID: ${court.id}, Mô tả: ${court.description}`);
+});
+```
+
+**Use Case:**
+```javascript
+// Flow: Hiển thị danh sách courts và cho phép xóa
+async function manageCourts(venueId) {
+  // 1. Lấy danh sách courts
+  const courts = await getCourtsByVenue(venueId);
+  
+  // 2. Hiển thị với button xóa
+  courts.forEach(court => {
+    displayCourt(court.id, court.description, () => {
+      // 3. Xóa khi click (xem API 17 bên dưới)
+      deleteCourt(court.id);
+    });
+  });
+}
+```
+
+---
+
+### 17. Delete Court
+**DELETE** `/api/courts/{id}`
+
+**Authentication Required:** ✅ Yes (ROLE_OWNER - chỉ chủ sở hữu venue)
+
+**💡 Làm sao biết Court ID?** → Dùng API `GET /api/venues/{venueId}/courts` (xem section 16.5 ở trên)
+
+**Path Parameters:**
+- `id` (required): ID của court cần xóa
+
+**Response Success (204 No Content):**
+- Không có body
+- HTTP Status: 204
+
+**Response Error (404 Not Found):**
+```json
+{
+  "success": false,
+  "message": "Court not found",
+  "timestamp": "2025-11-04T20:30:00Z"
+}
+```
+
+**Lưu ý quan trọng:**
+- ✅ Backend sẽ **TỰ ĐỘNG giảm** `numberOfCourt` của venue khi xóa court thành công
+- ✅ Frontend **KHÔNG CẦN** gọi thêm API update venue
+- ⚠️ Nên hiển thị confirm dialog trước khi xóa
+
+**Frontend Example - Flow hoàn chỉnh:**
+```javascript
+// BƯỚC 1: Lấy danh sách courts (để biết Court ID)
+const courts = await fetch(`/api/venues/${venueId}/courts`, {
+  headers: { 'Authorization': `Bearer ${token}` }
+}).then(r => r.json());
+
+console.log(courts.data); 
+// → [{ id: 1, description: "Sân 1" }, { id: 2, ... }]
+
+// BƯỚC 2: Xóa court theo ID
+async function deleteCourt(courtId) {
+  if (!confirm('Bạn có chắc muốn xóa sân này?')) return;
+  
+  const token = localStorage.getItem('token');
+  
+  const response = await fetch(`/api/courts/${courtId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  if (response.status === 204) {
+    alert('✅ Xóa court thành công!');
+    // numberOfCourt của venue đã được tự động giảm
+    window.location.reload(); // Refresh danh sách
+  }
+}
+
+// BƯỚC 3: Sử dụng
+deleteCourt(1); // Xóa court có ID = 1
+```
+
+**React Example:**
+```javascript
+function CourtManager({ venueId }) {
+  const [courts, setCourts] = useState([]);
+
+  // Load courts
+  useEffect(() => {
+    fetch(`/api/venues/${venueId}/courts`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
+    .then(r => r.json())
+    .then(data => setCourts(data.data));
+  }, [venueId]);
+
+  // Delete court
+  const handleDelete = async (courtId) => {
+    if (!confirm('Xóa sân này?')) return;
+    
+    await fetch(`/api/courts/${courtId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    // Refresh danh sách
+    setCourts(courts.filter(c => c.id !== courtId));
+  };
+
+  return (
+    <div>
+      {courts.map(court => (
+        <div key={court.id}>
+          <span>Sân #{court.id}: {court.description}</span>
+          <button onClick={() => handleDelete(court.id)}>🗑️ Xóa</button>
+        </div>
+      ))}
+    </div>
+  );
 }
 ```
 

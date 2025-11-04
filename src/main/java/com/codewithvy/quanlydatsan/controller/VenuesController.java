@@ -3,6 +3,8 @@ package com.codewithvy.quanlydatsan.controller;
 import com.codewithvy.quanlydatsan.dto.ApiResponse;
 import com.codewithvy.quanlydatsan.dto.VenuesDTO;
 import com.codewithvy.quanlydatsan.dto.VenuesRequest;
+import com.codewithvy.quanlydatsan.entity.Court;
+import com.codewithvy.quanlydatsan.repository.CourtRepository;
 import com.codewithvy.quanlydatsan.service.VenuesService;
 import com.codewithvy.quanlydatsan.service.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,10 +30,13 @@ public class VenuesController {
 
     private final VenuesService venuesService;
     private final FileStorageService fileStorageService;
+    private final CourtRepository courtRepository;
 
-    public VenuesController(VenuesService venuesService, FileStorageService fileStorageService) {
+    public VenuesController(VenuesService venuesService, FileStorageService fileStorageService,
+                           CourtRepository courtRepository) {
         this.venuesService = venuesService;
         this.fileStorageService = fileStorageService;
+        this.courtRepository = courtRepository;
     }
 
     @GetMapping
@@ -86,6 +91,23 @@ public class VenuesController {
     public ResponseEntity<ApiResponse<VenuesDTO>> getVenuesById(
             @Parameter(description = "ID của venue", required = true) @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(venuesService.getById(id)));
+    }
+
+    @GetMapping("/{id}/courts")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+        summary = "Lấy danh sách courts của venue",
+        description = "Trả về danh sách tất cả các courts thuộc venue này (yêu cầu đăng nhập)",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ResponseEntity<ApiResponse<List<Court>>> getCourtsByVenueId(
+            @Parameter(description = "ID của venue", required = true) @PathVariable Long id) {
+        // Kiểm tra venue có tồn tại không
+        venuesService.getById(id); // Sẽ throw exception nếu không tìm thấy
+
+        List<Court> courts = courtRepository.findByVenuesId(id);
+        log.info("Found {} courts for venue id: {}", courts.size(), id);
+        return ResponseEntity.ok(ApiResponse.ok(courts, "Courts of venue"));
     }
 
     @PostMapping
