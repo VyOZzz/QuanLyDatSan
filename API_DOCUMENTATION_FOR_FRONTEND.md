@@ -313,6 +313,10 @@ GET /venues/search?name=ABC&province=Hà Nội&district=Cầu Giấy
   "description": "Sân bóng chất lượng cao",
   "phoneNumber": "0987654321",
   "email": "contact@xyz.com",
+  "pricePerHour": 100000,
+  "openingTime": "06:00",
+  "closingTime": "23:00",
+  "numberOfCourt": 5,
   "address": {
     "provinceOrCity": "Hà Nội",
     "district": "Đống Đa",
@@ -325,7 +329,13 @@ GET /venues/search?name=ABC&province=Hà Nội&district=Cầu Giấy
 - `name`: Bắt buộc, không được để trống
 - `phoneNumber`: Bắt buộc
 - `email`: Phải là email hợp lệ
+- `pricePerHour`: Bắt buộc khi create, giá theo giờ (VND)
 - `address`: Bắt buộc
+- `numberOfCourt`: Tùy chọn - Nếu có, hệ thống sẽ **TỰ ĐỘNG TẠO** số lượng courts tương ứng
+
+**✨ TÍNH NĂNG MỚI: Tự động tạo courts**
+- Nếu `numberOfCourt = 5` → Hệ thống tự động tạo 5 courts với tên "Sân số 1", "Sân số 2"... "Sân số 5"
+- Nếu không truyền `numberOfCourt` hoặc = 0 → Không tạo courts, owner có thể thêm sau
 
 **Response Success (200):**
 ```json
@@ -334,18 +344,52 @@ GET /venues/search?name=ABC&province=Hà Nội&district=Cầu Giấy
   "data": {
     "id": 2,
     "name": "Sân bóng XYZ",
-    "numberOfCourt": 0,
+    "numberOfCourt": 5,
+    "pricePerHour": 100000,
+    "openingTime": "06:00:00",
+    "closingTime": "23:00:00",
     "address": {
       "id": 2,
       "provinceOrCity": "Hà Nội",
       "district": "Đống Đa",
       "detailAddress": "456 Đường XYZ"
     },
-    "courtsCount": 0
+    "courtsCount": 5
   },
   "message": "Created",
-  "timestamp": "2025-10-28T15:30:00Z"
+  "timestamp": "2025-11-04T21:00:00Z"
 }
+```
+
+**Frontend Example:**
+```javascript
+// Tạo venue với 5 sân tự động
+const createVenue = async () => {
+  const response = await fetch('/api/venues', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: "Sân bóng ABC",
+      phoneNumber: "0123456789",
+      email: "abc@gmail.com",
+      pricePerHour: 150000,
+      openingTime: "06:00",
+      closingTime: "23:00",
+      numberOfCourt: 5, // ← Tự động tạo 5 courts
+      address: {
+        provinceOrCity: "Hà Nội",
+        district: "Cầu Giấy",
+        detailAddress: "123 Đường ABC"
+      }
+    })
+  });
+  
+  const data = await response.json();
+  console.log('Venue created with', data.data.numberOfCourt, 'courts');
+};
 ```
 
 ---
@@ -850,7 +894,7 @@ const bookingResponse = await fetch('/api/bookings', {
 // Lấy danh sách courts của venue
 async function getCourtsByVenue(venueId) {
   const token = localStorage.getItem('token');
-  
+
   const response = await fetch(`/api/venues/${venueId}/courts`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -872,7 +916,7 @@ courts.forEach(court => {
 async function manageCourts(venueId) {
   // 1. Lấy danh sách courts
   const courts = await getCourtsByVenue(venueId);
-  
+
   // 2. Hiển thị với button xóa
   courts.forEach(court => {
     displayCourt(court.id, court.description, () => {
@@ -920,7 +964,7 @@ const courts = await fetch(`/api/venues/${venueId}/courts`, {
   headers: { 'Authorization': `Bearer ${token}` }
 }).then(r => r.json());
 
-console.log(courts.data); 
+console.log(courts.data);
 // → [{ id: 1, description: "Sân 1" }, { id: 2, ... }]
 
 // BƯỚC 2: Xóa court theo ID
@@ -962,12 +1006,12 @@ function CourtManager({ venueId }) {
   // Delete court
   const handleDelete = async (courtId) => {
     if (!confirm('Xóa sân này?')) return;
-    
+
     await fetch(`/api/courts/${courtId}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
-    
+
     // Refresh danh sách
     setCourts(courts.filter(c => c.id !== courtId));
   };

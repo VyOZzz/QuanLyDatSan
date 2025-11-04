@@ -76,6 +76,16 @@ public class UserService {
             user.setEmail(request.getEmail());
         }
 
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+            // Kiểm tra số điện thoại đã tồn tại chưa (trừ số điện thoại của chính user hiện tại)
+            userRepository.findByPhone(request.getPhone()).ifPresent(existingUser -> {
+                if (!existingUser.getId().equals(user.getId())) {
+                    throw new RuntimeException("Số điện thoại đã được sử dụng bởi tài khoản khác");
+                }
+            });
+            user.setPhone(request.getPhone());
+        }
+
         // Cập nhật thông tin ngân hàng (thường dùng cho OWNER)
         if (request.getBankName() != null) {
             user.setBankName(request.getBankName());

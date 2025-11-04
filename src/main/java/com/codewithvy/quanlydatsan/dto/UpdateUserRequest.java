@@ -9,6 +9,7 @@ import lombok.Data;
 public class UpdateUserRequest {
     private String fullname;
     private String email;
+    private String phone;  // Số điện thoại
 
     // Thông tin ngân hàng (chỉ OWNER cần)
     private String bankName;
