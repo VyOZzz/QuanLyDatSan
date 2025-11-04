@@ -75,6 +75,15 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.ok(bookings, "Lấy danh sách booking chờ xác nhận thành công."));
     }
 
+    @GetMapping("/owner/all-bookings")
+    @PreAuthorize("hasRole('OWNER')")
+    @Operation(summary = "Lấy tất cả booking của các sân thuộc sở hữu",
+               description = "Trả về tất cả booking tại các venues thuộc sở hữu của owner (tất cả trạng thái)")
+    public ResponseEntity<ApiResponse<List<BookingResponse>>> getAllBookingsForOwner() {
+        List<BookingResponse> bookings = bookingService.getAllBookingsForOwner();
+        return ResponseEntity.ok(ApiResponse.ok(bookings, "Lấy danh sách tất cả booking thành công."));
+    }
+
     @GetMapping("/my-bookings")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ApiResponse<List<BookingResponse>>> getMyBookings() {

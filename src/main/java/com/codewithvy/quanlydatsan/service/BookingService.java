@@ -11,7 +11,11 @@ import java.util.List;
 public interface BookingService {
     BookingResponse createBooking(BookingRequest bookingRequest);
     BookingResponse getBookingById(Long id);
+
+    // API lấy tất cả booking
     List<BookingResponse> getMyBookings();
+    List<BookingResponse> getAllBookingsForOwner();
+
     BookingResponse cancelBooking(Long id);
 
     // Phương thức mới cho workflow thanh toán

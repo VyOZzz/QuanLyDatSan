@@ -243,6 +243,16 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    public List<BookingResponse> getAllBookingsForOwner() {
+        User currentUser = getCurrentUser();
+        // Lấy tất cả booking từ tất cả venues thuộc sở hữu của owner
+        List<Booking> allBookings = bookingRepository.findAllBookingsForOwner(currentUser.getId());
+        return allBookings.stream()
+                .map(this::mapToBookingResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public BookingResponse getBookingById(Long id) {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
