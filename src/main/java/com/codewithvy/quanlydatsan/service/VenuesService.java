@@ -187,6 +187,44 @@ public class VenuesService {
             }
         }
 
+        // Cập nhật số lượng sân nếu có
+        if (request.getNumberOfCourt() != null && request.getNumberOfCourt() > 0) {
+            int currentNumberOfCourts = existing.getNumberOfCourt();
+            int newNumberOfCourts = request.getNumberOfCourt();
+
+            log.info("Updating numberOfCourt for venue id: {} from {} to {}", id, currentNumberOfCourts, newNumberOfCourts);
+
+            if (newNumberOfCourts > currentNumberOfCourts) {
+                // Tăng số sân - tạo thêm courts mới
+                int courtsToAdd = newNumberOfCourts - currentNumberOfCourts;
+                log.info("Adding {} new courts to venue id: {}", courtsToAdd, id);
+
+                for (int i = currentNumberOfCourts + 1; i <= newNumberOfCourts; i++) {
+                    Court court = new Court();
+                    court.setDescription("Sân số " + i);
+                    court.setVenues(existing);
+                    courtRepository.save(court);
+                    log.info("Created court {} for venue id: {}", i, id);
+                }
+            } else if (newNumberOfCourts < currentNumberOfCourts) {
+                // Giảm số sân - xóa các courts thừa (xóa từ cuối)
+                int courtsToRemove = currentNumberOfCourts - newNumberOfCourts;
+                log.info("Removing {} courts from venue id: {}", courtsToRemove, id);
+
+                List<Court> courts = courtRepository.findAll().stream()
+                        .filter(court -> court.getVenues().getId().equals(id))
+                        .sorted((c1, c2) -> c2.getId().compareTo(c1.getId())) // Sort descending by ID
+                        .limit(courtsToRemove)
+                        .collect(Collectors.toList());
+
+                for (Court court : courts) {
+                    log.info("Deleting court id: {} from venue id: {}", court.getId(), id);
+                    courtRepository.delete(court);
+                }
+            }
+
+            existing.setNumberOfCourt(newNumberOfCourts);
+        }
 
         return VenuesMapper.toDto(existing); // managed entity auto flushed
     }

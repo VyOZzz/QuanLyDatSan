@@ -150,13 +150,16 @@ Authorization: Bearer {your_jwt_token}
 {
   "fullname": "Nguyen Van A Updated",
   "email": "newemail@example.com",
+  "phone": "0987654321",
   "bankName": "Vietcombank",
   "bankAccountNumber": "1234567890",
   "bankAccountName": "NGUYEN VAN A"
 }
 ```
 
-**Note:** Tất cả các field đều optional. Chỉ gửi những field cần update.
+**Note:** 
+- Tất cả các field đều optional. Chỉ gửi những field cần update.
+- **`phone`** có thể được cập nhật, nhưng hệ thống sẽ kiểm tra số điện thoại mới chưa được sử dụng bởi tài khoản khác
 
 **Response Success (200):**
 ```json
@@ -165,7 +168,7 @@ Authorization: Bearer {your_jwt_token}
   "data": {
     "id": 1,
     "fullname": "Nguyen Van A Updated",
-    "phone": "0123456789",
+    "phone": "0987654321",
     "email": "newemail@example.com",
     "roles": ["ROLE_USER"],
     "bankName": "Vietcombank",
@@ -173,6 +176,15 @@ Authorization: Bearer {your_jwt_token}
     "bankAccountName": "NGUYEN VAN A"
   },
   "message": "Cập nhật thông tin thành công",
+  "timestamp": "2025-10-28T15:30:00Z"
+}
+```
+
+**Response Error (400) - Số điện thoại đã được sử dụng:**
+```json
+{
+  "success": false,
+  "message": "Số điện thoại đã được sử dụng bởi tài khoản khác",
   "timestamp": "2025-10-28T15:30:00Z"
 }
 ```
@@ -401,7 +413,7 @@ const createVenue = async () => {
 
 **Request Body:**
 
-**Cách 1: Cập nhật chỉ thông tin cơ bản (GIỮ NGUYÊN GIÁ CŨ)**
+**Cách 1: Cập nhật chỉ thông tin cơ bản**
 ```json
 {
   "name": "Sân bóng XYZ Updated",
@@ -416,58 +428,79 @@ const createVenue = async () => {
 }
 ```
 
-**Cách 2: Cập nhật cả thông tin và giá tiền (XÓA GIÁ CŨ, TẠO GIÁ MỚI)**
+**Cách 2: Cập nhật cả số lượng sân (TỰ ĐỘNG TẠO/XÓA COURTS)**
+```json
+{
+  "name": "Sân bóng XYZ Updated",
+  "description": "Mở rộng thêm sân",
+  "phoneNumber": "0987654321",
+  "email": "contact_new@xyz.com",
+  "numberOfCourt": 8,
+  "address": {
+    "provinceOrCity": "Hà Nội",
+    "district": "Đống Đa",
+    "detailAddress": "456 Đường XYZ - Tầng 2"
+  }
+}
+```
+
+**Cách 3: Cập nhật giá tiền và thời gian hoạt động**
 ```json
 {
   "name": "Sân bóng XYZ Premium",
   "description": "Sân bóng cao cấp với cỏ nhân tạo",
   "phoneNumber": "0987654321",
   "email": "premium@xyz.com",
+  "pricePerHour": 200000,
+  "openingTime": "05:00",
+  "closingTime": "24:00",
   "address": {
     "provinceOrCity": "TP Hồ Chí Minh",
     "district": "Quận 1",
     "detailAddress": "789 Nguyễn Huệ"
-  },
-  "priceRules": [
-    {
-      "name": "Giờ sáng",
-      "startTime": "06:00:00",
-      "endTime": "10:00:00",
-      "pricePerHour": 150000
-    },
-    {
-      "name": "Giờ trưa",
-      "startTime": "10:00:00",
-      "endTime": "17:00:00",
-      "pricePerHour": 200000
-    },
-    {
-      "name": "Giờ tối cao điểm",
-      "startTime": "17:00:00",
-      "endTime": "22:00:00",
-      "pricePerHour": 300000
-    },
-    {
-      "name": "Giờ đêm",
-      "startTime": "22:00:00",
-      "endTime": "23:59:59",
-      "pricePerHour": 250000
-    }
-  ]
+  }
 }
 ```
 
-**⚠️ LƯU Ý QUAN TRỌNG VỀ PRICE RULES:**
-- Field `priceRules` là **OPTIONAL** (không bắt buộc)
-- **KHÔNG gửi** `priceRules` hoặc `priceRules: null` → Giá cũ được **GIỮ NGUYÊN**
-- **GỬI** `priceRules` với array → **TẤT CẢ** giá cũ sẽ bị **XÓA** và thay thế bằng giá mới
-- Không thể cập nhật một phần price rules. Nếu muốn sửa, phải gửi lại toàn bộ danh sách
+**⚠️ LƯU Ý QUAN TRỌNG VỀ `numberOfCourt`:**
+- Field `numberOfCourt` là **OPTIONAL** (không bắt buộc)
+- **KHÔNG gửi** `numberOfCourt` → Số lượng sân **GIỮ NGUYÊN**
+- **GỬI** `numberOfCourt` với giá trị mới:
+  - **Tăng số sân** (VD: từ 5 lên 8) → Hệ thống **TỰ ĐỘNG TẠO** thêm 3 courts mới ("Sân số 6", "Sân số 7", "Sân số 8")
+  - **Giảm số sân** (VD: từ 8 xuống 5) → Hệ thống **TỰ ĐỘNG XÓA** 3 courts cuối cùng (courts có ID lớn nhất)
+  - **Giữ nguyên** (VD: từ 5 → 5) → Không thay đổi gì
 
-**Validation Rules cho PriceRules:**
-- `name`: Tên khung giờ (VD: "Giờ cao điểm buổi sáng")
-- `startTime`: Format "HH:mm:ss" (VD: "06:00:00")
-- `endTime`: Format "HH:mm:ss" (VD: "10:00:00")
-- `pricePerHour`: Số tiền dương (VD: 150000)
+**💡 Ví dụ thực tế:**
+```javascript
+// Venue hiện tại có 5 sân
+// User muốn mở rộng thêm 3 sân → Tổng 8 sân
+
+const response = await fetch(`/api/venues/${venueId}`, {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    numberOfCourt: 8  // ← Hệ thống tự động tạo "Sân số 6", "Sân số 7", "Sân số 8"
+  })
+});
+```
+
+**⚠️ Lưu ý khi GIẢM số sân:**
+- Hệ thống sẽ xóa các sân có ID lớn nhất (thường là sân được tạo sau cùng)
+- **Khuyến nghị:** Trước khi giảm số sân, nên kiểm tra xem các sân đó có booking nào không
+- Nếu có booking đang active trên các sân bị xóa → Có thể gây lỗi
+
+**Validation Rules:**
+- `name`: Tên venue
+- `phoneNumber`: Số điện thoại liên hệ
+- `email`: Email hợp lệ
+- `pricePerHour`: Giá theo giờ (VND), phải > 0
+- `openingTime`: Format "HH:mm" hoặc "HH:mm:ss" (VD: "06:00")
+- `closingTime`: Format "HH:mm" hoặc "HH:mm:ss" (VD: "23:00")
+- `numberOfCourt`: Số nguyên dương (VD: 5, 8, 10)
+- `address`: Object chứa thông tin địa chỉ
 
 **Response Success (200):**
 ```json
