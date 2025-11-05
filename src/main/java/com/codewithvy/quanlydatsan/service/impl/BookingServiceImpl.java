@@ -47,6 +47,18 @@ public class BookingServiceImpl implements BookingService {
         Court court = courtRepository.findById(bookingRequest.getCourtId())
                 .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
 
+        // VALIDATION: Kiểm tra court có thuộc venue không
+        if (!court.getVenues().getId().equals(bookingRequest.getVenueId())) {
+            throw new IllegalArgumentException(
+                String.format("Court #%d không thuộc Venue #%d. Court này thuộc Venue #%d (%s)",
+                    bookingRequest.getCourtId(),
+                    bookingRequest.getVenueId(),
+                    court.getVenues().getId(),
+                    court.getVenues().getName()
+                )
+            );
+        }
+
         // VALIDATION: Kiểm tra thời gian hợp lệ
         LocalDateTime now = LocalDateTime.now();
 
@@ -61,8 +73,9 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // Kiểm tra sân đã bị đặt chưa (check trong BookingItem thay vì Booking)
+        // FIX: Truyền court.getId() để đảm bảo chỉ check đúng sân này
         boolean hasConflict = bookingItemRepository.existsConflictingBooking(
-                court, bookingRequest.getStartTime(), bookingRequest.getEndTime());
+                court.getId(), bookingRequest.getStartTime(), bookingRequest.getEndTime());
         if (hasConflict) {
             throw new IllegalStateException("Sân đã được đặt trong khung giờ này. Vui lòng chọn khung giờ khác.");
         }
@@ -332,14 +345,19 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private BookingResponse mapToBookingResponse(Booking booking) {
-        // Lấy BookingItem đầu tiên để lấy thông tin court, startTime, endTime
+        // Lấy BookingItem để lấy thông tin court, startTime, endTime
         List<BookingItem> items = bookingItemRepository.findByBookingId(booking.getId());
+
+        // Tính totalPrice động từ BookingItems (tuân thủ 3NF)
+        double totalPrice = items.stream()
+                .mapToDouble(BookingItem::getPrice)
+                .sum();
 
         BookingResponse.BookingResponseBuilder builder = BookingResponse.builder()
                 .id(booking.getId())
                 .userId(booking.getUser().getId())
                 .userName(booking.getUser().getFullname())
-                .totalPrice(booking.getTotalPrice())
+                .totalPrice(totalPrice) // ← Tính động, không lấy từ database
                 .status(booking.getStatus())
                 .expireTime(booking.getExpireTime())
                 .paymentProofUploaded(booking.getPaymentProofUploaded())

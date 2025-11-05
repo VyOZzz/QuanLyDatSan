@@ -102,10 +102,44 @@ public class VenuesController {
         return ResponseEntity.ok(ApiResponse.ok(venuesService.getById(id)));
     }
 
+    @GetMapping("/{venueId}/courts")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+        summary = "Lấy danh sách courts của venue (đơn giản)",
+        description = "Trả về danh sách tất cả courts của venue (KHÔNG bao gồm thông tin availability/booked slots). Sử dụng khi chỉ cần hiển thị danh sách sân đơn giản. (yêu cầu đăng nhập)",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCourtsByVenue(
+            @Parameter(description = "ID của venue", required = true) @PathVariable Long venueId) {
+
+        // Kiểm tra venue tồn tại
+        VenuesDTO venue = venuesService.getById(venueId);
+
+        // Lấy danh sách courts của venue (query trực tiếp từ DB)
+        List<Court> courts = courtRepository.findByVenuesId(venueId);
+
+        log.info("Found {} courts for venue {} ({})", courts.size(), venueId, venue.getName());
+
+        // Map sang response đơn giản (chỉ thông tin cơ bản)
+        List<Map<String, Object>> courtsList = courts.stream().map(court -> {
+            Map<String, Object> courtInfo = new HashMap<>();
+            courtInfo.put("id", court.getId());
+            courtInfo.put("description", court.getDescription());
+            courtInfo.put("isActive", court.getIsActive()); // ← Thêm trạng thái sân
+            courtInfo.put("venueId", venueId);
+            courtInfo.put("venueName", venue.getName());
+            return courtInfo;
+        }).collect(Collectors.toList());
+
+        log.info("Returning {} courts for venue {}", courtsList.size(), venueId);
+
+        return ResponseEntity.ok(ApiResponse.ok(courtsList, "Courts list"));
+    }
+
     @GetMapping("/{venueId}/courts/availability")
     @PreAuthorize("isAuthenticated()")
     @Operation(
-        summary = "Lấy danh sách courts của venue với trạng thái",
+        summary = "Lấy danh sách courts của venue với trạng thái availability",
         description = "Trả về danh sách tất cả courts của venue kèm theo trạng thái available/unavailable trong khoảng thời gian cụ thể (yêu cầu đăng nhập)",
         security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -119,10 +153,10 @@ public class VenuesController {
         // Kiểm tra venue tồn tại
         VenuesDTO venue = venuesService.getById(venueId);
 
-        // Lấy danh sách courts của venue
-        List<Court> courts = courtRepository.findAll().stream()
-                .filter(court -> court.getVenues().getId().equals(venueId))
-                .collect(Collectors.toList());
+        // Lấy danh sách courts của venue (query trực tiếp từ DB)
+        List<Court> courts = courtRepository.findByVenuesId(venueId);
+
+        log.info("Checking availability for {} courts of venue {}", courts.size(), venueId);
 
         // Map sang response với trạng thái availability
         List<Map<String, Object>> courtsList = courts.stream().map(court -> {

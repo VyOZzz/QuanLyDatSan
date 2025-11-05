@@ -21,6 +21,9 @@ public class Court {
 
     private String description; // mô tả sân
 
+    @Column(nullable = false)
+    private Boolean isActive = true; // Trạng thái sân (true: hoạt động, false: tạm ngưng)
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venues_id", nullable = false)
     @JsonBackReference // back reference to avoid cyclic serialization (child -> parent)

@@ -23,14 +23,16 @@ public interface BookingItemRepository extends JpaRepository<BookingItem, Long> 
      * TỐI ƯU: Check THỜI GIAN THỰC - tự động mở khóa NGAY khi hết giờ booking!
      * (chỉ check các booking đang active: PENDING, PAYMENT_UPLOADED, CONFIRMED)
      * VÀ chỉ tính booking CHƯA KẾT THÚC (endTime > NOW)
+     *
+     * FIX: So sánh theo court.id thay vì Court object để đảm bảo chỉ check đúng sân
      */
     @Query("SELECT COUNT(bi) > 0 FROM BookingItem bi " +
-           "WHERE bi.court = :court " +
+           "WHERE bi.court.id = :courtId " +  // ← FIX: So sánh theo ID, không phải object
            "AND bi.booking.status IN ('PENDING_PAYMENT', 'PAYMENT_UPLOADED', 'CONFIRMED') " +
-           "AND bi.endTime > CURRENT_TIMESTAMP " +  // ← TỐI ƯU: Bỏ qua booking đã hết giờ!
+           "AND bi.endTime > CURRENT_TIMESTAMP " +
            "AND ((bi.startTime < :endTime AND bi.endTime > :startTime))")
     boolean existsConflictingBooking(
-        @Param("court") Court court,
+        @Param("courtId") Long courtId,  // ← FIX: Đổi từ Court object sang Long courtId
         @Param("startTime") LocalDateTime startTime,
         @Param("endTime") LocalDateTime endTime
     );
