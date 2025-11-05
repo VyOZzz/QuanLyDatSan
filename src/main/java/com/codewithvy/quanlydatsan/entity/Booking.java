@@ -28,8 +28,8 @@ public class Booking {
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookingItem> bookingItems = new ArrayList<>();
 
-    @Column(nullable = false)
-    private Double totalPrice;
+    // XÓA totalPrice - Vi phạm 3NF (dữ liệu dẫn xuất)
+    // Tính động từ BookingItems: getTotalPrice()
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -52,4 +52,18 @@ public class Booking {
     // Lý do từ chối (nếu có)
     @Column(length = 500)
     private String rejectionReason;
+
+    /**
+     * Tính tổng giá trị booking từ tất cả BookingItems
+     * Tuân thủ 3NF - không lưu dữ liệu dẫn xuất
+     */
+    @Transient
+    public Double getTotalPrice() {
+        if (bookingItems == null || bookingItems.isEmpty()) {
+            return 0.0;
+        }
+        return bookingItems.stream()
+                .mapToDouble(BookingItem::getPrice)
+                .sum();
+    }
 }

@@ -77,7 +77,7 @@ public class BookingServiceImpl implements BookingService {
         // Tạo booking mới với status PENDING_PAYMENT
         Booking booking = new Booking();
         booking.setUser(user);
-        booking.setTotalPrice(totalPrice);
+        // XÓA setTotalPrice - totalPrice sẽ được tính động từ BookingItems
         booking.setStatus(BookingStatus.PENDING_PAYMENT);
         booking.setExpireTime(LocalDateTime.now().plusMinutes(PAYMENT_EXPIRE_MINUTES));
         booking.setPaymentProofUploaded(false);
