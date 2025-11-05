@@ -70,23 +70,16 @@ public class VenuesController {
         return ResponseEntity.ok(ApiResponse.ok(venuesService.getMyVenues(), "My venues"));
     }
 
-    /**
-     * Tm kim theo tn v/hoc '‹a ch‰. Tham s' 'u l tu chn.
-     * VD: /api/venues/search?name=abc&province=Hanoi
-     */
     @GetMapping("/search")
     @PreAuthorize("isAuthenticated()")
     @Operation(
-        summary = "Tìm kiếm venues",
-        description = "Tìm kiếm venues theo tên và/hoặc địa chỉ (tỉnh, quận, chi tiết). Tất cả tham số đều tùy chọn (yêu cầu đăng nhập)",
+        summary = "Tìm kiếm venues - 1 ô duy nhất",
+        description = "Tìm kiếm venues trong tất cả các trường (tên, tỉnh, quận, địa chỉ) bằng 1 ô input duy nhất. Dễ sử dụng cho search box đơn giản. (yêu cầu đăng nhập)",
         security = @SecurityRequirement(name = "bearerAuth")
     )
     public ResponseEntity<ApiResponse<List<VenuesDTO>>> searchVenues(
-            @Parameter(description = "Tên venue cần tìm") @RequestParam(name = "name", required = false) String name,
-            @Parameter(description = "Tỉnh/Thành phố") @RequestParam(name = "province", required = false) String province,
-            @Parameter(description = "Quận/Huyện") @RequestParam(name = "district", required = false) String district,
-            @Parameter(description = "Địa chỉ chi tiết") @RequestParam(name = "detail", required = false) String detail) {
-        List<VenuesDTO> results = venuesService.search(name, province, district, detail);
+            @Parameter(description = "Từ khóa tìm kiếm (tìm trong tên, tỉnh, quận, địa chỉ)") @RequestParam(name = "q", required = false) String query) {
+        List<VenuesDTO> results = venuesService.searchUnified(query);
         return ResponseEntity.ok(ApiResponse.ok(results, "Search results"));
     }
 

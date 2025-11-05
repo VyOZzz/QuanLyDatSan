@@ -14,18 +14,16 @@ import java.util.List;
 @Repository
 public interface VenuesRepository extends JpaRepository<Venues, Long> {
     /**
-     * Tìm kiếm linh hoạt theo tên và/hoặc các trường địa chỉ (chuỗi chứa, không phân biệt hoa thường).
-     * Nếu tham số là null thì bỏ qua điều kiện tương ứng.
+     * Tìm kiếm unified - tìm trong tất cả các trường (name, province, district, detail)
+     * Sử dụng cho ô tìm kiếm duy nhất
      */
-    @Query("SELECT v FROM Venues v " +
-           "WHERE (:name IS NULL OR LOWER(v.name) LIKE LOWER(CONCAT('%', :name, '%'))) " +
-           "AND (:province IS NULL OR LOWER(v.address.provinceOrCity) LIKE LOWER(CONCAT('%', :province, '%'))) " +
-           "AND (:district IS NULL OR LOWER(v.address.district) LIKE LOWER(CONCAT('%', :district, '%'))) " +
-           "AND (:detail IS NULL OR LOWER(v.address.detailAddress) LIKE LOWER(CONCAT('%', :detail, '%'))) ")
-    List<Venues> search(@Param("name") String name,
-                        @Param("province") String province,
-                        @Param("district") String district,
-                        @Param("detail") String detail);
+    @Query("SELECT DISTINCT v FROM Venues v " +
+           "WHERE (:query IS NULL OR :query = '' OR " +
+           "LOWER(v.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(v.address.provinceOrCity) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(v.address.district) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(v.address.detailAddress) LIKE LOWER(CONCAT('%', :query, '%'))) ")
+    List<Venues> searchUnified(@Param("query") String query);
 
     /**
      * Tìm tất cả venues thuộc sở hữu của một owner cụ thể

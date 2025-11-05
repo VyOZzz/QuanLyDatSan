@@ -50,14 +50,11 @@ public class VenuesService {
     }
 
     /**
-     * Tìm kiếm venues theo tên và/hoặc địa chỉ (province/district/detail). Nếu tham số null/blank sẽ bỏ qua điều kiện.
+     * Tìm kiếm unified - tìm trong tất cả các trường
      */
-    public List<VenuesDTO> search(String name, String province, String district, String detail) {
-        String n = normalize(name);
-        String p = normalize(province);
-        String d = normalize(district);
-        String de = normalize(detail);
-        return venuesRepository.search(n, p, d, de)
+    public List<VenuesDTO> searchUnified(String query) {
+        String q = normalize(query);
+        return venuesRepository.searchUnified(q)
                 .stream().map(VenuesMapper::toDto).collect(Collectors.toList());
     }
 
