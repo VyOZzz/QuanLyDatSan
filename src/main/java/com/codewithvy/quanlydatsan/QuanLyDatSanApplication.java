@@ -9,6 +9,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import com.codewithvy.quanlydatsan.entity.Role;
 import com.codewithvy.quanlydatsan.repository.RoleRepository;
 
+import java.util.TimeZone;
+
 /**
  * Điểm vào chính của ứng dụng Spring Boot (hàm main chạy app).
  * Có kèm CommandLineRunner để seed một số role mặc định vào DB nếu chưa có.
@@ -18,6 +20,9 @@ import com.codewithvy.quanlydatsan.repository.RoleRepository;
 public class QuanLyDatSanApplication {
 
     public static void main(String[] args) {
+        // Đặt múi giờ mặc định cho toàn bộ JVM là Việt Nam (UTC+7)
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+
         SpringApplication.run(QuanLyDatSanApplication.class, args);
     }
 
