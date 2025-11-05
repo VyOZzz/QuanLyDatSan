@@ -1189,6 +1189,14 @@ function CourtManager({ venueId }) {
 
 ## Booking APIs
 
+**⚠️ LƯU Ý QUAN TRỌNG VỀ `totalPrice`:**
+- Field `totalPrice` **KHÔNG được lưu trong database** (tuân thủ chuẩn 3NF)
+- `totalPrice` được **TÍNH ĐỘNG** từ `SUM(booking_item.price)` 
+- Backend tự động tính khi gọi API
+- Frontend chỉ cần hiển thị giá trị này, không cần tính toán
+
+---
+
 ### 22. Create Booking (Đặt sân)
 **POST** `/bookings`
 
