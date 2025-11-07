@@ -24,7 +24,15 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("QuanLyDatSan API")
                         .version("v1.0")
-                        .description("API quản lý đặt sân thể thao - Hệ thống cho phép quản lý venue, court, booking và users")
+                        .description("""
+                                API quản lý đặt sân thể thao - Hệ thống cho phép quản lý venue, court, booking và users
+                                
+                                ⏰ **QUAN TRỌNG - THỜI GIAN:**
+                                - Tất cả thời gian sử dụng múi giờ **Việt Nam (Asia/Ho_Chi_Minh, UTC+7)**
+                                - Format: `yyyy-MM-dd'T'HH:mm:ss` (VD: `2025-11-07T14:00:00`)
+                                - **KHÔNG CẦN** thêm `Z` hoặc `+07:00` ở cuối
+                                - Backend tự động xử lý timezone
+                                """)
                         .contact(new Contact()
                                 .name("CodeWithVy Team")
                                 .email("vyp8269@gmail.com"))

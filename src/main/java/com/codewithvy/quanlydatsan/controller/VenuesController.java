@@ -133,14 +133,30 @@ public class VenuesController {
     @PreAuthorize("isAuthenticated()")
     @Operation(
         summary = "Lấy danh sách courts của venue với trạng thái availability",
-        description = "Trả về danh sách tất cả courts của venue kèm theo trạng thái available/unavailable trong khoảng thời gian cụ thể (yêu cầu đăng nhập)",
+        description = """
+            Trả về danh sách tất cả courts của venue kèm theo trạng thái available/unavailable trong khoảng thời gian cụ thể
+            
+            ⏰ **THỜI GIAN:**
+            - Format: `yyyy-MM-dd'T'HH:mm:ss` (VD: `2025-11-07T14:00:00`)
+            - Múi giờ: Việt Nam (Asia/Ho_Chi_Minh, UTC+7)
+            - **KHÔNG CẦN** thêm `Z` hoặc `+07:00`
+            """,
         security = @SecurityRequirement(name = "bearerAuth")
     )
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCourtsWithAvailability(
-            @Parameter(description = "ID của venue", required = true) @PathVariable Long venueId,
-            @Parameter(description = "Thời gian bắt đầu (ISO DateTime)", required = true)
+            @Parameter(description = "ID của venue", required = true)
+            @PathVariable Long venueId,
+            @Parameter(
+                description = "Thời gian bắt đầu kiểm tra (Giờ Việt Nam)",
+                required = true,
+                example = "2025-11-07T14:00:00"
+            )
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
-            @Parameter(description = "Thời gian kết thúc (ISO DateTime)", required = true)
+            @Parameter(
+                description = "Thời gian kết thúc kiểm tra (Giờ Việt Nam)",
+                required = true,
+                example = "2025-11-07T15:00:00"
+            )
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
 
         // Kiểm tra venue tồn tại

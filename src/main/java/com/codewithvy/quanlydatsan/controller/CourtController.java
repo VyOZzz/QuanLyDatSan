@@ -7,6 +7,9 @@ import com.codewithvy.quanlydatsan.entity.Venues;
 import com.codewithvy.quanlydatsan.repository.BookingItemRepository;
 import com.codewithvy.quanlydatsan.repository.CourtRepository;
 import com.codewithvy.quanlydatsan.repository.VenuesRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -40,7 +43,7 @@ public class CourtController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Court> getCourtById(@PathVariable Long id) {
         Optional<Court> court = courtRepository.findById(id);
-        return court.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.<Court>notFound().build());
+        return court.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /**
@@ -49,9 +52,32 @@ public class CourtController {
      */
     @GetMapping("/{id}/availability")
     @PreAuthorize("isAuthenticated()")
+    @Operation(
+        summary = "Kiểm tra availability của court trong khoảng thời gian",
+        description = """
+            Trả về trạng thái available/unavailable của court cụ thể trong khoảng thời gian
+            
+            ⏰ **THỜI GIAN:**
+            - Format: `yyyy-MM-dd'T'HH:mm:ss` (VD: `2025-11-07T14:00:00`)
+            - Múi giờ: Việt Nam (Asia/Ho_Chi_Minh, UTC+7)
+            - **KHÔNG CẦN** thêm `Z` hoặc `+07:00`
+            """,
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
     public ResponseEntity<?> checkAvailability(
+            @Parameter(description = "ID của court", required = true)
             @PathVariable Long id,
+            @Parameter(
+                description = "Thời gian bắt đầu kiểm tra (Giờ Việt Nam)",
+                required = true,
+                example = "2025-11-07T14:00:00"
+            )
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @Parameter(
+                description = "Thời gian kết thúc kiểm tra (Giờ Việt Nam)",
+                required = true,
+                example = "2025-11-07T15:00:00"
+            )
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
 
         Optional<Court> courtOpt = courtRepository.findById(id);
@@ -115,7 +141,7 @@ public class CourtController {
                 venuesRepository.findById(courtDetails.getVenues().getId()).ifPresent(court::setVenues);
             }
             return ResponseEntity.ok(courtRepository.save(court));
-        }).orElseGet(() -> ResponseEntity.<Court>notFound().build());
+        }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
@@ -123,7 +149,7 @@ public class CourtController {
     public ResponseEntity<Void> deleteCourt(@PathVariable Long id) {
         Optional<Court> courtOpt = courtRepository.findById(id);
         if (courtOpt.isEmpty()) {
-            return ResponseEntity.<Void>notFound().build();
+            return ResponseEntity.notFound().build();
         }
 
         Court court = courtOpt.get();
@@ -138,6 +164,6 @@ public class CourtController {
             venuesRepository.save(venues);
         }
 
-        return ResponseEntity.<Void>noContent().build();
+        return ResponseEntity.noContent().build();
     }
 }
