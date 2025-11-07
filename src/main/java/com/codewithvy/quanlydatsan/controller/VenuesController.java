@@ -140,10 +140,15 @@ public class VenuesController {
             - Format: `yyyy-MM-dd'T'HH:mm:ss` (VD: `2025-11-07T14:00:00`)
             - Múi giờ: Việt Nam (Asia/Ho_Chi_Minh, UTC+7)
             - **KHÔNG CẦN** thêm `Z` hoặc `+07:00`
+            
+            📅 **CHO FRONTEND:**
+            - Response bao gồm `openingTime` và `closingTime` để frontend chia thành các ô 30 phút
+            - `bookedSlots` chứa danh sách các slot đã được đặt
+            - Frontend dựa vào 2 thông tin này để render lịch với trạng thái từng ô
             """,
         security = @SecurityRequirement(name = "bearerAuth")
     )
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCourtsWithAvailability(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getCourtsWithAvailability(
             @Parameter(description = "ID của venue", required = true)
             @PathVariable Long venueId,
             @Parameter(
@@ -177,6 +182,7 @@ public class VenuesController {
             Map<String, Object> courtInfo = new HashMap<>();
             courtInfo.put("id", court.getId());
             courtInfo.put("description", court.getDescription());
+            courtInfo.put("isActive", court.getIsActive()); // ← Trạng thái sân
             courtInfo.put("available", bookedSlots.isEmpty()); // ← Trạng thái available
 
             // Thêm thông tin các slot đã đặt (nếu có)
@@ -196,10 +202,13 @@ public class VenuesController {
             return courtInfo;
         }).collect(Collectors.toList());
 
-        // Thêm thông tin venue vào response
+        // Thêm thông tin venue vào response (bao gồm giờ mở/đóng cửa)
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("venueId", venueId);
         responseData.put("venueName", venue.getName());
+        responseData.put("openingTime", venue.getOpeningTime()); // ← Giờ mở cửa (VD: "06:00:00")
+        responseData.put("closingTime", venue.getClosingTime()); // ← Giờ đóng cửa (VD: "23:00:00")
+        responseData.put("pricePerHour", venue.getPricePerHour()); // ← Giá theo giờ
         responseData.put("timeRange", Map.of(
             "startTime", startTime,
             "endTime", endTime
@@ -208,10 +217,11 @@ public class VenuesController {
         responseData.put("totalCourts", courtsList.size());
         responseData.put("availableCourts", courtsList.stream().filter(c -> (Boolean) c.get("available")).count());
 
-        log.info("Checked availability for venue {}: {} courts, {} available",
-            venueId, courtsList.size(), responseData.get("availableCourts"));
+        log.info("Checked availability for venue {}: {} courts, {} available, openingTime={}, closingTime={}",
+            venueId, courtsList.size(), responseData.get("availableCourts"),
+            venue.getOpeningTime(), venue.getClosingTime());
 
-        return ResponseEntity.ok(ApiResponse.ok(courtsList, "Courts with availability"));
+        return ResponseEntity.ok(ApiResponse.ok(responseData, "Courts with availability and venue info"));
     }
 
     @PostMapping
