@@ -13,6 +13,8 @@ import com.codewithvy.quanlydatsan.service.FileStorageService;
 import com.codewithvy.quanlydatsan.service.NotificationService;
 import com.codewithvy.quanlydatsan.service.PriceService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +28,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
+
+    private static final Logger log = LoggerFactory.getLogger(BookingServiceImpl.class);
 
     private final BookingRepository bookingRepository;
     private final BookingItemRepository bookingItemRepository;
@@ -44,13 +48,44 @@ public class BookingServiceImpl implements BookingService {
         UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         User user = userRepository.findById(userDetails.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        Court court = courtRepository.findById(bookingRequest.getCourtId())
-                .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
 
-        // VALIDATION: Kiểm tra court có thuộc venue không
+        log.info("Creating booking for user={}, courtId={}, venueId={}, startTime={}, endTime={}",
+            user.getEmail(),
+            bookingRequest.getCourtId(),
+            bookingRequest.getVenueId(),
+            bookingRequest.getStartTime(),
+            bookingRequest.getEndTime());
+
+        // VALIDATION 1: Kiểm tra court tồn tại
+        Court court = courtRepository.findById(bookingRequest.getCourtId())
+                .orElseThrow(() -> {
+                    log.error("Court not found with id: {}", bookingRequest.getCourtId());
+                    return new ResourceNotFoundException(
+                        String.format("Không tìm thấy sân với ID: %d. Sân có thể đã bị xóa hoặc không tồn tại.",
+                            bookingRequest.getCourtId())
+                    );
+                });
+
+        log.info("Found court: id={}, description='{}', isActive={}, venueId={}, venueName='{}'",
+            court.getId(),
+            court.getDescription(),
+            court.getIsActive(),
+            court.getVenues().getId(),
+            court.getVenues().getName());
+
+        // VALIDATION 2: Kiểm tra court có đang hoạt động không
+        if (!court.getIsActive()) {
+            log.warn("Attempted to book inactive court: id={}, description='{}'", court.getId(), court.getDescription());
+            throw new IllegalStateException(
+                String.format("Sân #%d (%s) đang tạm ngưng hoạt động. Vui lòng chọn sân khác.",
+                    court.getId(), court.getDescription())
+            );
+        }
+
+        // VALIDATION 3: Kiểm tra court có thuộc venue không
         if (!court.getVenues().getId().equals(bookingRequest.getVenueId())) {
             throw new IllegalArgumentException(
-                String.format("Court #%d không thuộc Venue #%d. Court này thuộc Venue #%d (%s)",
+                String.format("Sân #%d không thuộc Venue #%d. Sân này thuộc Venue #%d (%s)",
                     bookingRequest.getCourtId(),
                     bookingRequest.getVenueId(),
                     court.getVenues().getId(),
@@ -266,9 +301,18 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional(readOnly = true)  // ✅ Thêm @Transactional để đảm bảo lazy loading hoạt động
     public BookingResponse getBookingById(Long id) {
-        Booking booking = bookingRepository.findById(id)
+        // ✅ Sử dụng method mới để load bookingItems cùng lúc
+        Booking booking = bookingRepository.findByIdWithItems(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+
+        // ✅ Đảm bảo bookingItems được load
+        if (booking.getBookingItems() == null || booking.getBookingItems().isEmpty()) {
+            log.error("❌ CRITICAL: Booking {} has no items!", id);
+            throw new IllegalStateException("Booking has no items");
+        }
+        log.info("✅ Loaded booking {} with {} items", id, booking.getBookingItems().size());
         return mapToBookingResponse(booking);
     }
 
@@ -345,19 +389,47 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private BookingResponse mapToBookingResponse(Booking booking) {
-        // Lấy BookingItem để lấy thông tin court, startTime, endTime
-        List<BookingItem> items = bookingItemRepository.findByBookingId(booking.getId());
+        // ✅ Ưu tiên lấy từ booking entity (đã được fetch)
+        List<BookingItem> items = booking.getBookingItems();
 
-        // Tính totalPrice động từ BookingItems (tuân thủ 3NF)
+        // ✅ Fallback: Nếu vẫn null hoặc empty, query lại
+        if (items == null || items.isEmpty()) {
+            log.warn("⚠️ BookingItems not loaded from entity, querying again for booking {}", booking.getId());
+            items = bookingItemRepository.findByBookingId(booking.getId());
+        }
+
+        // ✅ Kiểm tra lại
+        if (items == null || items.isEmpty()) {
+            log.error("❌ CRITICAL: Booking {} has no items after query!", booking.getId());
+            throw new IllegalStateException(
+                    String.format("Booking %d has no items. This should not happen!", booking.getId())
+            );
+        }
+
+        // Tính totalPrice động từ BookingItems
         double totalPrice = items.stream()
                 .mapToDouble(BookingItem::getPrice)
                 .sum();
 
+        BookingItem firstItem = items.get(0);
+
+        log.info("📋 Mapping Booking {}: courtId={}, startTime={}, endTime={}",
+                booking.getId(),
+                firstItem.getCourt().getId(),
+                firstItem.getStartTime(),
+                firstItem.getEndTime());
+
+        // ✅ LUÔN set startTime và endTime từ firstItem
         BookingResponse.BookingResponseBuilder builder = BookingResponse.builder()
                 .id(booking.getId())
                 .userId(booking.getUser().getId())
                 .userName(booking.getUser().getFullname())
-                .totalPrice(totalPrice) // ← Tính động, không lấy từ database
+                .courtId(firstItem.getCourt().getId())
+                .courtName(firstItem.getCourt().getDescription())  // ✅ Sửa: dùng description
+                .venuesName(firstItem.getCourt().getVenues().getName())
+                .startTime(firstItem.getStartTime())  // ✅ LUÔN set
+                .endTime(firstItem.getEndTime())  // ✅ LUÔN set
+                .totalPrice(totalPrice)
                 .status(booking.getStatus())
                 .expireTime(booking.getExpireTime())
                 .paymentProofUploaded(booking.getPaymentProofUploaded())
@@ -365,26 +437,16 @@ public class BookingServiceImpl implements BookingService {
                 .paymentProofUploadedAt(booking.getPaymentProofUploadedAt())
                 .rejectionReason(booking.getRejectionReason());
 
-        // Thêm thông tin từ BookingItem nếu có
-        if (!items.isEmpty()) {
-            BookingItem firstItem = items.get(0);
-            builder.courtId(firstItem.getCourt().getId())
-                   .courtName("Sân " + firstItem.getCourt().getId())
-                   .venuesName(firstItem.getCourt().getVenues().getName())
-                   .startTime(firstItem.getStartTime())
-                   .endTime(firstItem.getEndTime());
-
-            // Thêm thông tin tài khoản chủ sân nếu status là PENDING_PAYMENT
-            if (booking.getStatus() == BookingStatus.PENDING_PAYMENT) {
-                User owner = firstItem.getCourt().getVenues().getOwner();
-                OwnerBankInfoDTO bankInfo = OwnerBankInfoDTO.builder()
-                        .bankName(owner.getBankName())
-                        .bankAccountNumber(owner.getBankAccountNumber())
-                        .bankAccountName(owner.getBankAccountName())
-                        .ownerName(owner.getFullname())
-                        .build();
-                builder.ownerBankInfo(bankInfo);
-            }
+        // ✅ Thêm thông tin tài khoản chủ sân nếu status là PENDING_PAYMENT
+        if (booking.getStatus() == BookingStatus.PENDING_PAYMENT) {
+            User owner = firstItem.getCourt().getVenues().getOwner();
+            OwnerBankInfoDTO bankInfo = OwnerBankInfoDTO.builder()
+                    .bankName(owner.getBankName())
+                    .bankAccountNumber(owner.getBankAccountNumber())
+                    .bankAccountName(owner.getBankAccountName())
+                    .ownerName(owner.getFullname())
+                    .build();
+            builder.ownerBankInfo(bankInfo);
         }
 
         return builder.build();
