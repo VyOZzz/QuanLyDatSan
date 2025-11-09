@@ -15,6 +15,7 @@ import java.time.LocalTime;
 public class VenuesDTO {
     private Long id;
     private String name;
+    private String description; // mô tả về venues
     private int numberOfCourt;
     private AddressDTO address;
     private Integer courtsCount; // tránh load toàn bộ courts

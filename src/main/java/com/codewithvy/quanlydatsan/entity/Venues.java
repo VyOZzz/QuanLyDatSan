@@ -29,8 +29,6 @@ public class Venues {
     @Column(nullable = false)
     private String name; // tên địa điểm
 
-    @Column
-    private String title; // tiêu đề mô tả
 
     @Column(columnDefinition = "TEXT")
     private String description; // mô tả về venues

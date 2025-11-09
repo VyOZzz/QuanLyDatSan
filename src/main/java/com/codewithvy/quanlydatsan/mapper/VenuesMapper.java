@@ -44,6 +44,7 @@ public class VenuesMapper {
         return VenuesDTO.builder()
                 .id(v.getId())
                 .name(v.getName())
+                .description(v.getDescription()) // Map trường description
                 .numberOfCourt(v.getNumberOfCourt())
                 .address(addressDTO)
                 .courtsCount(courtsCount)
