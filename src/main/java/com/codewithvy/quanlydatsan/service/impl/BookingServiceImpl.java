@@ -49,97 +49,121 @@ public class BookingServiceImpl implements BookingService {
         User user = userRepository.findById(userDetails.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        log.info("Creating booking for user={}, courtId={}, venueId={}, startTime={}, endTime={}",
-            user.getEmail(),
-            bookingRequest.getCourtId(),
-            bookingRequest.getVenueId(),
-            bookingRequest.getStartTime(),
-            bookingRequest.getEndTime());
+        // ========== KIỂM TRA CHẾ ĐỘ: LEGACY (1 sân) hay MULTI (nhiều sân) ==========
+        List<BookingItemRequest> itemsToBook;
 
-        // VALIDATION 1: Kiểm tra court tồn tại
-        Court court = courtRepository.findById(bookingRequest.getCourtId())
-                .orElseThrow(() -> {
-                    log.error("Court not found with id: {}", bookingRequest.getCourtId());
-                    return new ResourceNotFoundException(
-                        String.format("Không tìm thấy sân với ID: %d. Sân có thể đã bị xóa hoặc không tồn tại.",
-                            bookingRequest.getCourtId())
-                    );
-                });
+        if (bookingRequest.getBookingItems() != null && !bookingRequest.getBookingItems().isEmpty()) {
+            // ✅ NEW MODE: Đặt nhiều sân
+            log.info("Creating MULTI-COURT booking for user={}, venueId={}, {} courts",
+                user.getEmail(), bookingRequest.getVenueId(), bookingRequest.getBookingItems().size());
+            itemsToBook = bookingRequest.getBookingItems();
+        } else {
+            // ✅ LEGACY MODE: Đặt 1 sân (backward compatible)
+            if (bookingRequest.getCourtId() == null || bookingRequest.getStartTime() == null || bookingRequest.getEndTime() == null) {
+                throw new IllegalArgumentException("Cần cung cấp bookingItems hoặc (courtId + startTime + endTime)");
+            }
+            log.info("Creating SINGLE-COURT booking (legacy mode) for user={}, courtId={}, venueId={}",
+                user.getEmail(), bookingRequest.getCourtId(), bookingRequest.getVenueId());
 
-        log.info("Found court: id={}, description='{}', isActive={}, venueId={}, venueName='{}'",
-            court.getId(),
-            court.getDescription(),
-            court.getIsActive(),
-            court.getVenues().getId(),
-            court.getVenues().getName());
-
-        // VALIDATION 2: Kiểm tra court có đang hoạt động không
-        if (!court.getIsActive()) {
-            log.warn("Attempted to book inactive court: id={}, description='{}'", court.getId(), court.getDescription());
-            throw new IllegalStateException(
-                String.format("Sân #%d (%s) đang tạm ngưng hoạt động. Vui lòng chọn sân khác.",
-                    court.getId(), court.getDescription())
-            );
+            // Convert legacy request thành BookingItemRequest
+            BookingItemRequest legacyItem = new BookingItemRequest();
+            legacyItem.setCourtId(bookingRequest.getCourtId());
+            legacyItem.setStartTime(bookingRequest.getStartTime());
+            legacyItem.setEndTime(bookingRequest.getEndTime());
+            itemsToBook = List.of(legacyItem);
         }
 
-        // VALIDATION 3: Kiểm tra court có thuộc venue không
-        if (!court.getVenues().getId().equals(bookingRequest.getVenueId())) {
-            throw new IllegalArgumentException(
-                String.format("Sân #%d không thuộc Venue #%d. Sân này thuộc Venue #%d (%s)",
-                    bookingRequest.getCourtId(),
-                    bookingRequest.getVenueId(),
-                    court.getVenues().getId(),
-                    court.getVenues().getName()
-                )
-            );
-        }
-
-        // VALIDATION: Kiểm tra thời gian hợp lệ
+        // ========== VALIDATION CHO TẤT CẢ CÁC SÂN ==========
         LocalDateTime now = LocalDateTime.now();
 
-        if (bookingRequest.getStartTime().isBefore(now)) {
-            throw new IllegalArgumentException("Thời gian bắt đầu phải sau thời điểm hiện tại");
-        }
-        if (bookingRequest.getEndTime().isBefore(bookingRequest.getStartTime())) {
-            throw new IllegalArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu");
-        }
-        if (bookingRequest.getEndTime().isBefore(now)) {
-            throw new IllegalArgumentException("Thời gian kết thúc phải sau thời điểm hiện tại");
+        for (BookingItemRequest item : itemsToBook) {
+            // Validate thời gian
+            if (item.getStartTime().isBefore(now)) {
+                throw new IllegalArgumentException(
+                    String.format("Thời gian bắt đầu của sân #%d phải sau thời điểm hiện tại", item.getCourtId())
+                );
+            }
+            if (item.getEndTime().isBefore(item.getStartTime())) {
+                throw new IllegalArgumentException(
+                    String.format("Thời gian kết thúc của sân #%d phải sau thời gian bắt đầu", item.getCourtId())
+                );
+            }
+            if (item.getEndTime().isBefore(now)) {
+                throw new IllegalArgumentException(
+                    String.format("Thời gian kết thúc của sân #%d phải sau thời điểm hiện tại", item.getCourtId())
+                );
+            }
+
+            // Validate court tồn tại
+            Court court = courtRepository.findById(item.getCourtId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    String.format("Không tìm thấy sân với ID: %d", item.getCourtId())
+                ));
+
+            // Validate court đang hoạt động
+            if (!court.getIsActive()) {
+                throw new IllegalStateException(
+                    String.format("Sân #%d (%s) đang tạm ngưng hoạt động. Vui lòng chọn sân khác.",
+                        court.getId(), court.getDescription())
+                );
+            }
+
+            // Validate court thuộc venue
+            if (!court.getVenues().getId().equals(bookingRequest.getVenueId())) {
+                throw new IllegalArgumentException(
+                    String.format("Sân #%d không thuộc Venue #%d. Sân này thuộc Venue #%d (%s)",
+                        item.getCourtId(), bookingRequest.getVenueId(),
+                        court.getVenues().getId(), court.getVenues().getName())
+                );
+            }
+
+            // Validate conflict (sân đã bị đặt chưa)
+            boolean hasConflict = bookingItemRepository.existsConflictingBooking(
+                court.getId(), item.getStartTime(), item.getEndTime()
+            );
+            if (hasConflict) {
+                throw new IllegalStateException(
+                    String.format("Sân #%d (%s) đã được đặt trong khung giờ %s - %s. Vui lòng chọn khung giờ khác.",
+                        court.getId(), court.getDescription(), item.getStartTime(), item.getEndTime())
+                );
+            }
         }
 
-        // Kiểm tra sân đã bị đặt chưa (check trong BookingItem thay vì Booking)
-        // FIX: Truyền court.getId() để đảm bảo chỉ check đúng sân này
-        boolean hasConflict = bookingItemRepository.existsConflictingBooking(
-                court.getId(), bookingRequest.getStartTime(), bookingRequest.getEndTime());
-        if (hasConflict) {
-            throw new IllegalStateException("Sân đã được đặt trong khung giờ này. Vui lòng chọn khung giờ khác.");
-        }
-
-        // Tính giá tiền theo PriceService
-        double totalPrice = priceService.calculateTotalCost(
-                court.getVenues().getId(),
-                bookingRequest.getStartTime(),
-                bookingRequest.getEndTime()
-        ).orElse(100000.0 * Duration.between(bookingRequest.getStartTime(), bookingRequest.getEndTime()).toHours());
-
-        // Tạo booking mới với status PENDING_PAYMENT
+        // ========== TẠO BOOKING ==========
         Booking booking = new Booking();
         booking.setUser(user);
-        // XÓA setTotalPrice - totalPrice sẽ được tính động từ BookingItems
         booking.setStatus(BookingStatus.PENDING_PAYMENT);
         booking.setExpireTime(LocalDateTime.now().plusMinutes(PAYMENT_EXPIRE_MINUTES));
         booking.setPaymentProofUploaded(false);
 
         Booking savedBooking = bookingRepository.save(booking);
 
-        // Tạo BookingItem
-        BookingItem bookingItem = new BookingItem();
-        bookingItem.setBooking(savedBooking);
-        bookingItem.setCourt(court);
-        bookingItem.setStartTime(bookingRequest.getStartTime());
-        bookingItem.setEndTime(bookingRequest.getEndTime());
-        bookingItem.setPrice(totalPrice);
-        bookingItemRepository.save(bookingItem);
+        // ========== TẠO CÁC BOOKING ITEMS ==========
+        for (BookingItemRequest itemRequest : itemsToBook) {
+            Court court = courtRepository.findById(itemRequest.getCourtId())
+                .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
+
+            // Tính giá tiền cho từng item
+            double itemPrice = priceService.calculateTotalCost(
+                court.getVenues().getId(),
+                itemRequest.getStartTime(),
+                itemRequest.getEndTime()
+            ).orElse(100000.0 * Duration.between(itemRequest.getStartTime(), itemRequest.getEndTime()).toHours());
+
+            BookingItem bookingItem = new BookingItem();
+            bookingItem.setBooking(savedBooking);
+            bookingItem.setCourt(court);
+            bookingItem.setStartTime(itemRequest.getStartTime());
+            bookingItem.setEndTime(itemRequest.getEndTime());
+            bookingItem.setPrice(itemPrice);
+            bookingItemRepository.save(bookingItem);
+
+            log.info("Created BookingItem: courtId={}, startTime={}, endTime={}, price={}",
+                court.getId(), itemRequest.getStartTime(), itemRequest.getEndTime(), itemPrice);
+        }
+
+        log.info("✅ Successfully created booking #{} with {} court(s), totalPrice={}",
+            savedBooking.getId(), itemsToBook.size(), savedBooking.getTotalPrice());
 
         return mapToBookingResponse(savedBooking);
     }
