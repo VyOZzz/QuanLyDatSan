@@ -443,7 +443,19 @@ public class BookingServiceImpl implements BookingService {
                 firstItem.getStartTime(),
                 firstItem.getEndTime());
 
-        // ✅ LUÔN set startTime và endTime từ firstItem
+        // ✅ Map bookingItems to BookingItemResponse
+        List<BookingItemResponse> bookingItemResponses = items.stream()
+                .map(item -> BookingItemResponse.builder()
+                        .id(item.getId())
+                        .courtId(item.getCourt().getId())
+                        .courtName(item.getCourt().getDescription())
+                        .startTime(item.getStartTime())
+                        .endTime(item.getEndTime())
+                        .price(item.getPrice())
+                        .build())
+                .collect(Collectors.toList());
+
+        // ✅ LUÔN set startTime và endTime từ firstItem (for backward compatibility)
         BookingResponse.BookingResponseBuilder builder = BookingResponse.builder()
                 .id(booking.getId())
                 .userId(booking.getUser().getId())
@@ -451,15 +463,16 @@ public class BookingServiceImpl implements BookingService {
                 .courtId(firstItem.getCourt().getId())
                 .courtName(firstItem.getCourt().getDescription())  // ✅ Sửa: dùng description
                 .venuesName(firstItem.getCourt().getVenues().getName())
-                .startTime(firstItem.getStartTime())  // ✅ LUÔN set
-                .endTime(firstItem.getEndTime())  // ✅ LUÔN set
+                .startTime(firstItem.getStartTime())  // ✅ LUÔN set (legacy field)
+                .endTime(firstItem.getEndTime())  // ✅ LUÔN set (legacy field)
                 .totalPrice(totalPrice)
                 .status(booking.getStatus())
                 .expireTime(booking.getExpireTime())
                 .paymentProofUploaded(booking.getPaymentProofUploaded())
                 .paymentProofUrl(booking.getPaymentProofUrl())
                 .paymentProofUploadedAt(booking.getPaymentProofUploadedAt())
-                .rejectionReason(booking.getRejectionReason());
+                .rejectionReason(booking.getRejectionReason())
+                .bookingItems(bookingItemResponses);  // ✅ NEW: Add bookingItems array
 
         // ✅ Thêm thông tin tài khoản chủ sân nếu status là PENDING_PAYMENT
         if (booking.getStatus() == BookingStatus.PENDING_PAYMENT) {

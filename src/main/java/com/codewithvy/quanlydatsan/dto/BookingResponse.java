@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -25,4 +26,5 @@ public class BookingResponse {
     private LocalDateTime paymentProofUploadedAt;
     private String rejectionReason;
     private OwnerBankInfoDTO ownerBankInfo; // Thông tin TK chủ sân
+    private List<BookingItemResponse> bookingItems; // ✅ Danh sách chi tiết các sân đã đặt
 }

@@ -46,9 +46,10 @@ public class ReviewService {
             throw new IllegalArgumentException("You can only review your own bookings");
         }
 
-        // 4. Kiểm tra booking đã hoàn thành chưa
-        if (booking.getStatus() != BookingStatus.COMPLETED) {
-            throw new IllegalArgumentException("You can only review completed bookings");
+        // 4. Kiểm tra booking đã được xác nhận hoặc hoàn thành chưa
+        // Cho phép review nếu booking đã CONFIRMED (đã được chấp nhận) hoặc COMPLETED (đã hoàn thành)
+        if (booking.getStatus() != BookingStatus.CONFIRMED && booking.getStatus() != BookingStatus.COMPLETED) {
+            throw new IllegalArgumentException("You can only review confirmed or completed bookings");
         }
 
         // 5. Kiểm tra đã review chưa
