@@ -4,6 +4,7 @@ import com.codewithvy.quanlydatsan.dto.ApiResponse;
 import com.codewithvy.quanlydatsan.entity.*;
 import com.codewithvy.quanlydatsan.exception.RoleNotFoundException;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
+import com.codewithvy.quanlydatsan.payload.request.ChangePasswordRequest;
 import com.codewithvy.quanlydatsan.payload.request.ForgotPasswordRequest;
 import com.codewithvy.quanlydatsan.payload.request.LoginRequest;
 import com.codewithvy.quanlydatsan.payload.request.ResetPasswordRequest;
@@ -23,6 +24,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -245,5 +247,73 @@ public class AuthController {
         }
         passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok(ApiResponse.ok("Đổi mật khẩu thành công", "Password changed"));
+    }
+
+    @PostMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+        summary = "Đổi mật khẩu khi đã đăng nhập",
+        description = "Cho phép user đã đăng nhập đổi mật khẩu bằng cách xác thực mật khẩu cũ"
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Đổi mật khẩu thành công"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400",
+            description = "Mật khẩu cũ không đúng hoặc mật khẩu mới không khớp"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "401",
+            description = "Chưa đăng nhập"
+        )
+    })
+    public ResponseEntity<ApiResponse<String>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request) {
+        try {
+            // Lấy thông tin user hiện tại từ Security Context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String phone = authentication.getName();
+
+            // Kiểm tra mật khẩu mới và xác nhận khớp nhau
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("Mật khẩu mới và xác nhận mật khẩu không khớp"));
+            }
+
+            // Kiểm tra mật khẩu mới không giống mật khẩu cũ
+            if (request.getCurrentPassword().equals(request.getNewPassword())) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("Mật khẩu mới phải khác mật khẩu cũ"));
+            }
+
+            // Tìm user
+            User user = userRepository.findByPhone(phone)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+            // Xác thực mật khẩu cũ
+            if (!encoder.matches(request.getCurrentPassword(), user.getPassword())) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("Mật khẩu hiện tại không đúng"));
+            }
+
+            // Cập nhật mật khẩu mới
+            user.setPassword(encoder.encode(request.getNewPassword()));
+            userRepository.save(user);
+
+            logger.info("User {} changed password successfully", phone);
+
+            return ResponseEntity.ok(
+                ApiResponse.ok("Đổi mật khẩu thành công", "Password changed successfully"));
+
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.status(404)
+                .body(ApiResponse.fail("Không tìm thấy tài khoản"));
+        } catch (Exception ex) {
+            logger.error("Error changing password: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(500)
+                .body(ApiResponse.fail("Lỗi khi đổi mật khẩu: " + ex.getMessage()));
+        }
     }
 }
