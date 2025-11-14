@@ -455,6 +455,18 @@ public class BookingServiceImpl implements BookingService {
                         .build())
                 .collect(Collectors.toList());
 
+        // ✅ Map địa chỉ sân
+        Address venueAddress = firstItem.getCourt().getVenues().getAddress();
+        AddressDTO venueAddressDTO = null;
+        if (venueAddress != null) {
+            venueAddressDTO = AddressDTO.builder()
+                    .id(venueAddress.getId())
+                    .provinceOrCity(venueAddress.getProvinceOrCity())
+                    .district(venueAddress.getDistrict())
+                    .detailAddress(venueAddress.getDetailAddress())
+                    .build();
+        }
+
         // ✅ LUÔN set startTime và endTime từ firstItem (for backward compatibility)
         BookingResponse.BookingResponseBuilder builder = BookingResponse.builder()
                 .id(booking.getId())
@@ -463,6 +475,7 @@ public class BookingServiceImpl implements BookingService {
                 .courtId(firstItem.getCourt().getId())
                 .courtName(firstItem.getCourt().getDescription())  // ✅ Sửa: dùng description
                 .venuesName(firstItem.getCourt().getVenues().getName())
+                .venueAddress(venueAddressDTO)  // ✅ Thêm địa chỉ sân
                 .startTime(firstItem.getStartTime())  // ✅ LUÔN set (legacy field)
                 .endTime(firstItem.getEndTime())  // ✅ LUÔN set (legacy field)
                 .totalPrice(totalPrice)

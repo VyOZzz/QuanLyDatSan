@@ -16,6 +16,7 @@ public class BookingResponse {
     private Long courtId;
     private String courtName;
     private String venuesName;
+    private AddressDTO venueAddress; // Địa chỉ sân
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private Double totalPrice;
