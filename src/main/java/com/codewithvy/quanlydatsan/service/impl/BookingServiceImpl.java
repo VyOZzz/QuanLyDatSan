@@ -3,10 +3,12 @@ package com.codewithvy.quanlydatsan.service.impl;
 import com.codewithvy.quanlydatsan.dto.*;
 import com.codewithvy.quanlydatsan.entity.*;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
+import com.codewithvy.quanlydatsan.exception.UnauthorizedException;
 import com.codewithvy.quanlydatsan.repository.BookingRepository;
 import com.codewithvy.quanlydatsan.repository.BookingItemRepository;
 import com.codewithvy.quanlydatsan.repository.CourtRepository;
 import com.codewithvy.quanlydatsan.repository.UserRepository;
+import com.codewithvy.quanlydatsan.repository.VenuesRepository;
 import com.codewithvy.quanlydatsan.security.UserDetailsImpl;
 import com.codewithvy.quanlydatsan.service.BookingService;
 import com.codewithvy.quanlydatsan.service.FileStorageService;
@@ -35,6 +37,7 @@ public class BookingServiceImpl implements BookingService {
     private final BookingItemRepository bookingItemRepository;
     private final UserRepository userRepository;
     private final CourtRepository courtRepository;
+    private final VenuesRepository venuesRepository;
     private final NotificationService notificationService;
     private final FileStorageService fileStorageService;
     private final PriceService priceService;
@@ -309,6 +312,23 @@ public class BookingServiceImpl implements BookingService {
     public List<BookingResponse> getPendingBookingsForOwner() {
         User currentUser = getCurrentUser();
         List<Booking> bookings = bookingRepository.findPendingBookingsForOwner(currentUser.getId());
+        return bookings.stream()
+                .map(this::mapToBookingResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<BookingResponse> getPendingBookingsByVenue(Long venueId) {
+        User currentUser = getCurrentUser();
+        // Kiểm tra xem venue có thuộc sở hữu của owner không
+        Venues venue = venuesRepository.findById(venueId)
+                .orElseThrow(() -> new ResourceNotFoundException("Venue not found"));
+
+        if (!venue.getOwner().getId().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Bạn không có quyền truy cập venue này");
+        }
+
+        List<Booking> bookings = bookingRepository.findPendingBookingsByVenue(venueId);
         return bookings.stream()
                 .map(this::mapToBookingResponse)
                 .collect(Collectors.toList());

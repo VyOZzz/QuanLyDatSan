@@ -75,6 +75,15 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.ok(bookings, "Lấy danh sách booking chờ xác nhận thành công."));
     }
 
+    @GetMapping("/venue/{venueId}/pending")
+    @PreAuthorize("hasRole('OWNER')")
+    @Operation(summary = "Lấy danh sách booking chờ xác nhận theo venue",
+               description = "Trả về các booking có status PAYMENT_UPLOADED của một venue cụ thể")
+    public ResponseEntity<ApiResponse<List<BookingResponse>>> getPendingBookingsByVenue(@PathVariable Long venueId) {
+        List<BookingResponse> bookings = bookingService.getPendingBookingsByVenue(venueId);
+        return ResponseEntity.ok(ApiResponse.ok(bookings, "Lấy danh sách booking chờ xác nhận của venue thành công."));
+    }
+
     @GetMapping("/owner/all-bookings")
     @PreAuthorize("hasRole('OWNER')")
     @Operation(summary = "Lấy tất cả booking của các sân thuộc sở hữu",

@@ -24,6 +24,7 @@ public interface BookingService {
     BookingResponse rejectBooking(Long bookingId, BookingRejectRequest request);
     List<BookingResponse> getVenueBookings(Long venueId);
     List<BookingResponse> getPendingBookingsForOwner();
+    List<BookingResponse> getPendingBookingsByVenue(Long venueId);
 
     // Phương thức mới cho upload ảnh chuyển khoản
     BookingResponse uploadPaymentProof(Long bookingId, MultipartFile file);

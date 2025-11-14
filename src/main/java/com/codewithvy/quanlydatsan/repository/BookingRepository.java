@@ -30,6 +30,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingItems bi WHERE bi.court.venues.owner.id = :ownerId AND b.status = 'PAYMENT_UPLOADED' ORDER BY b.paymentProofUploadedAt DESC")
     List<Booking> findPendingBookingsForOwner(@Param("ownerId") Long ownerId);
 
+    // Tìm các booking cần chủ sân xác nhận theo venue cụ thể
+    @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingItems bi WHERE bi.court.venues.id = :venueId AND b.status = 'PAYMENT_UPLOADED' ORDER BY b.paymentProofUploadedAt DESC")
+    List<Booking> findPendingBookingsByVenue(@Param("venueId") Long venueId);
+
     // Tìm TẤT CẢ booking của tất cả venues thuộc sở hữu của owner
     @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingItems bi WHERE bi.court.venues.owner.id = :ownerId ORDER BY b.id DESC")
     List<Booking> findAllBookingsForOwner(@Param("ownerId") Long ownerId);
