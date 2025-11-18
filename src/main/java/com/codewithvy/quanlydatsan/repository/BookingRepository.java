@@ -39,8 +39,13 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findAllBookingsForOwner(@Param("ownerId") Long ownerId);
 
     // ✅ Lấy các booking đã được chấp nhận của user (cho tính năng lịch check-in sắp tới)
-    @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingItems bi WHERE b.user.id = :userId AND b.status = 'CONFIRMED' ORDER BY bi.startTime ASC")
-    List<Booking> findConfirmedBookingsByUser(@Param("userId") Long userId);
+    // Chỉ lấy booking chưa kết thúc (endTime >= now)
+    @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingItems bi " +
+           "WHERE b.user.id = :userId " +
+           "AND b.status = 'CONFIRMED' " +
+           "AND bi.endTime >= :now " +
+           "ORDER BY bi.startTime ASC")
+    List<Booking> findConfirmedBookingsByUser(@Param("userId") Long userId, @Param("now") LocalDateTime now);
 
     // ✅ SỬA: Thêm method này để load bookingItems cùng lúc
     @EntityGraph(attributePaths = {

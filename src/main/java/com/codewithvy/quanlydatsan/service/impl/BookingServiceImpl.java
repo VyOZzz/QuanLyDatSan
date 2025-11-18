@@ -525,7 +525,7 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public List<BookingResponse> getMyUpcomingBookings() {
         User currentUser = getCurrentUser();
-        List<Booking> bookings = bookingRepository.findConfirmedBookingsByUser(currentUser.getId());
+        List<Booking> bookings = bookingRepository.findConfirmedBookingsByUser(currentUser.getId(), LocalDateTime.now());
         return bookings.stream()
                 .map(this::mapToBookingResponse)
                 .collect(Collectors.toList());
