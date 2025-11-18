@@ -40,20 +40,22 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     // ✅ Lấy các booking đã được chấp nhận của user (cho tính năng lịch check-in sắp tới)
     // Chỉ lấy booking chưa kết thúc (endTime >= now)
+    // FIX: Không dùng ORDER BY bi.startTime khi có DISTINCT - thay vào đó order theo booking.id
     @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingItems bi " +
            "WHERE b.user.id = :userId " +
            "AND b.status = 'CONFIRMED' " +
            "AND bi.endTime >= :now " +
-           "ORDER BY bi.startTime ASC")
+           "ORDER BY b.id DESC")
     List<Booking> findConfirmedBookingsByUser(@Param("userId") Long userId, @Param("now") LocalDateTime now);
 
     // ✅ Lấy các booking upcoming (CONFIRMED) theo venue cho chủ sân
     // Lấy booking chưa kết thúc (endTime >= now)
+    // FIX: Không dùng ORDER BY bi.startTime khi có DISTINCT - thay vào đó order theo booking.id
     @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingItems bi " +
            "WHERE bi.court.venues.id = :venueId " +
            "AND b.status = 'CONFIRMED' " +
            "AND bi.endTime >= :now " +
-           "ORDER BY bi.startTime ASC")
+           "ORDER BY b.id DESC")
     List<Booking> findUpcomingBookingsByVenue(@Param("venueId") Long venueId, @Param("now") LocalDateTime now);
 
     // ✅ SỬA: Thêm method này để load bookingItems cùng lúc
