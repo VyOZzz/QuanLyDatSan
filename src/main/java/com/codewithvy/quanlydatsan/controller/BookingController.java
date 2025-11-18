@@ -100,6 +100,15 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.ok(bookings, "My bookings retrieved successfully"));
     }
 
+    @GetMapping("/my-upcoming-bookings")
+    @PreAuthorize("hasRole('USER')")
+    @Operation(summary = "Lấy lịch check-in sắp tới",
+               description = "Trả về các booking đã được chủ sân chấp nhận (status CONFIRMED) để hiển thị lịch check-in sắp tới")
+    public ResponseEntity<ApiResponse<List<BookingResponse>>> getMyUpcomingBookings() {
+        List<BookingResponse> bookings = bookingService.getMyUpcomingBookings();
+        return ResponseEntity.ok(ApiResponse.ok(bookings, "Lấy lịch check-in sắp tới thành công"));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<BookingResponse>> getBookingById(@PathVariable Long id) {

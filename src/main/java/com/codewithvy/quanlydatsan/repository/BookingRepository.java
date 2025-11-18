@@ -38,6 +38,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingItems bi WHERE bi.court.venues.owner.id = :ownerId ORDER BY b.id DESC")
     List<Booking> findAllBookingsForOwner(@Param("ownerId") Long ownerId);
 
+    // ✅ Lấy các booking đã được chấp nhận của user (cho tính năng lịch check-in sắp tới)
+    @Query("SELECT DISTINCT b FROM Booking b JOIN b.bookingItems bi WHERE b.user.id = :userId AND b.status = 'CONFIRMED' ORDER BY bi.startTime ASC")
+    List<Booking> findConfirmedBookingsByUser(@Param("userId") Long userId);
+
     // ✅ SỬA: Thêm method này để load bookingItems cùng lúc
     @EntityGraph(attributePaths = {
             "user",  // ✅ Load user info

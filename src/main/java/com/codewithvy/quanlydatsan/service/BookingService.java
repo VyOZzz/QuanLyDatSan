@@ -28,4 +28,7 @@ public interface BookingService {
 
     // Phương thức mới cho upload ảnh chuyển khoản
     BookingResponse uploadPaymentProof(Long bookingId, MultipartFile file);
+
+    // Lấy các booking đã được chấp nhận của user (cho tính năng lịch check-in sắp tới)
+    List<BookingResponse> getMyUpcomingBookings();
 }

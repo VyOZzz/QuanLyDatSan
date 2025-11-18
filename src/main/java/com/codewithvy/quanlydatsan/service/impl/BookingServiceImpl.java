@@ -522,6 +522,15 @@ public class BookingServiceImpl implements BookingService {
         return builder.build();
     }
 
+    @Override
+    public List<BookingResponse> getMyUpcomingBookings() {
+        User currentUser = getCurrentUser();
+        List<Booking> bookings = bookingRepository.findConfirmedBookingsByUser(currentUser.getId());
+        return bookings.stream()
+                .map(this::mapToBookingResponse)
+                .collect(Collectors.toList());
+    }
+
     private User getCurrentUser() {
         String phone = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByPhone(phone)
