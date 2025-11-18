@@ -31,4 +31,7 @@ public interface BookingService {
 
     // Lấy các booking đã được chấp nhận của user (cho tính năng lịch check-in sắp tới)
     List<BookingResponse> getMyUpcomingBookings();
+
+    // Lấy các booking upcoming (CONFIRMED) theo venue cho chủ sân
+    List<BookingResponse> getUpcomingBookingsByVenue(Long venueId);
 }

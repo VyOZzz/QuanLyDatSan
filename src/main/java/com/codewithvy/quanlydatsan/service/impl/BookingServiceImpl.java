@@ -531,6 +531,24 @@ public class BookingServiceImpl implements BookingService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<BookingResponse> getUpcomingBookingsByVenue(Long venueId) {
+        // Kiểm tra quyền sở hữu venue
+        User currentUser = getCurrentUser();
+        Venues venue = venuesRepository.findById(venueId)
+                .orElseThrow(() -> new ResourceNotFoundException("Venue not found with id: " + venueId));
+
+        if (!venue.getOwner().getId().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Bạn không có quyền xem booking của sân này");
+        }
+
+        // Lấy các booking CONFIRMED và chưa kết thúc
+        List<Booking> bookings = bookingRepository.findUpcomingBookingsByVenue(venueId, LocalDateTime.now());
+        return bookings.stream()
+                .map(this::mapToBookingResponse)
+                .collect(Collectors.toList());
+    }
+
     private User getCurrentUser() {
         String phone = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByPhone(phone)

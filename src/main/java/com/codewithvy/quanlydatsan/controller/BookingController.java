@@ -100,13 +100,22 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.ok(bookings, "My bookings retrieved successfully"));
     }
 
+    @GetMapping("/venue/{venueId}/upcoming")
+    @PreAuthorize("hasRole('OWNER')")
+    @Operation(summary = "Lấy danh sách booking upcoming theo venue",
+               description = "Trả về các booking có status CONFIRMED và chưa kết thúc của một venue cụ thể - dùng cho tính năng lịch check-in sắp tới")
+    public ResponseEntity<ApiResponse<List<BookingResponse>>> getUpcomingBookingsByVenue(@PathVariable Long venueId) {
+        List<BookingResponse> bookings = bookingService.getUpcomingBookingsByVenue(venueId);
+        return ResponseEntity.ok(ApiResponse.ok(bookings, "Lấy danh sách booking sắp tới thành công."));
+    }
+
     @GetMapping("/my-upcoming-bookings")
     @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Lấy lịch check-in sắp tới",
-               description = "Trả về các booking đã được chủ sân chấp nhận (status CONFIRMED) để hiển thị lịch check-in sắp tới")
+    @Operation(summary = "Lấy danh sách booking upcoming của user",
+               description = "Trả về các booking có status CONFIRMED và chưa kết thúc của user - dùng cho tính năng lịch check-in sắp tới")
     public ResponseEntity<ApiResponse<List<BookingResponse>>> getMyUpcomingBookings() {
         List<BookingResponse> bookings = bookingService.getMyUpcomingBookings();
-        return ResponseEntity.ok(ApiResponse.ok(bookings, "Lấy lịch check-in sắp tới thành công"));
+        return ResponseEntity.ok(ApiResponse.ok(bookings, "Lấy danh sách booking sắp tới thành công."));
     }
 
     @GetMapping("/{id}")
