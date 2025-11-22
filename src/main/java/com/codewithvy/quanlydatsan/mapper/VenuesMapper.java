@@ -54,6 +54,8 @@ public class VenuesMapper {
                 .openingTime(v.getOpeningTime())
                 .closingTime(v.getClosingTime())
                 .images(v.getImages()) // Map danh sách ảnh
+                .phoneNumber(v.getPhoneNumber()) // Map số điện thoại của venue
+                .email(v.getEmail()) // Map email của venue
                 .ownerPhoneNumber(v.getOwner() != null ? v.getOwner().getPhone() : null) // Map số điện thoại chủ sân
                 .build();
     }

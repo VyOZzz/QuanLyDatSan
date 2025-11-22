@@ -238,7 +238,15 @@ public class BookingServiceImpl implements BookingService {
         }
 
         if (booking.getStatus() != BookingStatus.PAYMENT_UPLOADED) {
-            throw new IllegalStateException("Booking must be in PAYMENT_UPLOADED status to accept");
+            if (booking.getStatus() == BookingStatus.PENDING_PAYMENT && booking.getPaymentProofUploaded()) {
+                log.info("⚠️ Owner accepting booking #{} while still PENDING_PAYMENT but payment proof uploaded", bookingId);
+            } else {
+                throw new IllegalStateException(
+                    String.format("Cannot accept booking with status %s. User must upload payment proof first. " +
+                                  "PaymentProofUploaded: %s",
+                                  booking.getStatus(), booking.getPaymentProofUploaded())
+                );
+            }
         }
 
         // Xác nhận đặt sân
@@ -276,9 +284,19 @@ public class BookingServiceImpl implements BookingService {
             throw new SecurityException("You don't have permission to reject this booking");
         }
 
-        if (booking.getStatus() != BookingStatus.PAYMENT_UPLOADED) {
-            throw new IllegalStateException("Booking must be in PAYMENT_UPLOADED status to reject");
+        // ✅ Cho phép reject nếu booking chưa ở trạng thái kết thúc (COMPLETED, CANCELLED, REJECTED, EXPIRED)
+        if (booking.getStatus() == BookingStatus.COMPLETED ||
+            booking.getStatus() == BookingStatus.CANCELLED ||
+            booking.getStatus() == BookingStatus.REJECTED ||
+            booking.getStatus() == BookingStatus.EXPIRED) {
+            throw new IllegalStateException(
+                String.format("Cannot reject booking with status %s", booking.getStatus())
+            );
         }
+
+        // ✅ Log để debug
+        log.info("Owner rejecting booking #{} with status: {}, reason: {}",
+                 bookingId, booking.getStatus(), request.getRejectionReason());
 
         // Từ chối đặt sân
         booking.setStatus(BookingStatus.REJECTED);
@@ -493,11 +511,12 @@ public class BookingServiceImpl implements BookingService {
                 .userId(booking.getUser().getId())
                 .userName(booking.getUser().getFullname())
                 .courtId(firstItem.getCourt().getId())
-                .courtName(firstItem.getCourt().getDescription())  // ✅ Sửa: dùng description
+                .courtName(firstItem.getCourt().getDescription())
                 .venuesName(firstItem.getCourt().getVenues().getName())
-                .venueAddress(venueAddressDTO)  // ✅ Thêm địa chỉ sân
-                .startTime(firstItem.getStartTime())  // ✅ LUÔN set (legacy field)
-                .endTime(firstItem.getEndTime())  // ✅ LUÔN set (legacy field)
+                .venueAddress(venueAddressDTO)
+                .venuePhoneNumber(firstItem.getCourt().getVenues().getPhoneNumber())
+                .startTime(firstItem.getStartTime())
+                .endTime(firstItem.getEndTime())
                 .totalPrice(totalPrice)
                 .status(booking.getStatus())
                 .expireTime(booking.getExpireTime())
@@ -505,7 +524,7 @@ public class BookingServiceImpl implements BookingService {
                 .paymentProofUrl(booking.getPaymentProofUrl())
                 .paymentProofUploadedAt(booking.getPaymentProofUploadedAt())
                 .rejectionReason(booking.getRejectionReason())
-                .bookingItems(bookingItemResponses);  // ✅ NEW: Add bookingItems array
+                .bookingItems(bookingItemResponses);
 
         // ✅ Thêm thông tin tài khoản chủ sân nếu status là PENDING_PAYMENT
         if (booking.getStatus() == BookingStatus.PENDING_PAYMENT) {
