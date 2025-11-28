@@ -34,4 +34,7 @@ public interface BookingService {
 
     // Lấy các booking upcoming (CONFIRMED) theo venue cho chủ sân
     List<BookingResponse> getUpcomingBookingsByVenue(Long venueId);
+
+    // DEBUG: Tìm các booking orphan (không có items)
+    List<Long> findOrphanBookingIds();
 }

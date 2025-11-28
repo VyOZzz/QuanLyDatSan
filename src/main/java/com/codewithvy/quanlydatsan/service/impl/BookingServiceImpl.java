@@ -382,7 +382,17 @@ public class BookingServiceImpl implements BookingService {
     public List<BookingResponse> getMyBookings() {
         User currentUser = getCurrentUser();
         List<Booking> bookings = bookingRepository.findByUserId(currentUser.getId());
+
+        // ✅ Filter out orphan bookings (bookings without items)
         return bookings.stream()
+                .filter(booking -> {
+                    List<BookingItem> items = booking.getBookingItems();
+                    if (items == null || items.isEmpty()) {
+                        log.error("⚠️ SKIPPING orphan booking {} - No items found! This booking should be cleaned up.", booking.getId());
+                        return false; // Skip this booking
+                    }
+                    return true;
+                })
                 .map(this::mapToBookingResponse)
                 .collect(Collectors.toList());
     }
@@ -510,6 +520,7 @@ public class BookingServiceImpl implements BookingService {
                 .id(booking.getId())
                 .userId(booking.getUser().getId())
                 .userName(booking.getUser().getFullname())
+                .userPhoneNumber(booking.getUser().getPhone())
                 .courtId(firstItem.getCourt().getId())
                 .courtName(firstItem.getCourt().getDescription())
                 .venuesName(firstItem.getCourt().getVenues().getName())
@@ -566,6 +577,24 @@ public class BookingServiceImpl implements BookingService {
         return bookings.stream()
                 .map(this::mapToBookingResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Long> findOrphanBookingIds() {
+        // Lấy tất cả booking
+        List<Booking> allBookings = bookingRepository.findAll();
+
+        // Filter những booking không có items
+        List<Long> orphanIds = allBookings.stream()
+                .filter(booking -> {
+                    List<BookingItem> items = booking.getBookingItems();
+                    return items == null || items.isEmpty();
+                })
+                .map(Booking::getId)
+                .collect(Collectors.toList());
+
+        log.warn("⚠️ Found {} orphan bookings: {}", orphanIds.size(), orphanIds);
+        return orphanIds;
     }
 
     private User getCurrentUser() {

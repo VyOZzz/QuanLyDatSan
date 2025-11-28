@@ -151,4 +151,23 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.ok(bookingResponse,
             "Đã upload ảnh thành công. Vui lòng nhấn 'Xác nhận thanh toán' để gửi cho chủ sân."));
     }
+
+    // ========== DEBUG ENDPOINTS ==========
+
+    @GetMapping("/debug/check-orphans")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('OWNER')")
+    @Operation(summary = "[DEBUG] Kiểm tra booking orphan",
+               description = "Trả về danh sách các booking ID không có booking items. Dùng để debug và cleanup dữ liệu lỗi.")
+    public ResponseEntity<ApiResponse<String>> checkOrphanBookings() {
+        List<Long> orphanIds = bookingService.findOrphanBookingIds();
+        if (orphanIds.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.ok("✅ Không có booking orphan. Database OK!", null));
+        } else {
+            String message = String.format("⚠️ Tìm thấy %d booking orphan (không có items): %s. " +
+                "Hãy xóa chúng bằng SQL hoặc liên hệ admin.",
+                orphanIds.size(), orphanIds);
+            return ResponseEntity.ok(ApiResponse.ok(message, String.valueOf(orphanIds)));
+        }
+    }
 }
+

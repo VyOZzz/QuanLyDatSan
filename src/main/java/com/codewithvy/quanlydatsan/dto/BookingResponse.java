@@ -13,6 +13,7 @@ public class BookingResponse {
     private Long id;
     private Long userId;
     private String userName;
+    private String userPhoneNumber; // Số điện thoại người đặt sân
     private Long courtId;
     private String courtName;
     private String venuesName;
