@@ -144,6 +144,38 @@ public class CourtController {
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @PatchMapping("/{id}/toggle-status")
+    @PreAuthorize("hasRole('OWNER')")
+    @Operation(
+        summary = "Khóa/Mở khóa court",
+        description = "Toggle trạng thái hoạt động của court (khóa/mở khóa). Chỉ chủ sân mới được phép thực hiện.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ResponseEntity<?> toggleCourtStatus(
+            @Parameter(description = "ID của court cần toggle", required = true)
+            @PathVariable Long id) {
+
+        Optional<Court> courtOpt = courtRepository.findById(id);
+        if (courtOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Court court = courtOpt.get();
+
+        // Toggle trạng thái
+        court.setIsActive(!court.getIsActive());
+        Court updatedCourt = courtRepository.save(court);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", updatedCourt.getId());
+        response.put("description", updatedCourt.getDescription());
+        response.put("isActive", updatedCourt.getIsActive());
+        response.put("venueId", updatedCourt.getVenues().getId());
+        response.put("message", updatedCourt.getIsActive() ? "Court đã được mở khóa" : "Court đã được khóa");
+
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<Void> deleteCourt(@PathVariable Long id) {
