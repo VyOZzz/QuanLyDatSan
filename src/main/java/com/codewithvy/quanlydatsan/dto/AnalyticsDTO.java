@@ -54,6 +54,9 @@ public class AnalyticsDTO {
 
         @Schema(description = "Phân tích tự động")
         private Insights insights;
+
+        @Schema(description = "Thống kê liên lạc")
+        private ContactStats contactStats;
     }
 
     @Data
@@ -318,6 +321,53 @@ public class AnalyticsDTO {
 
         @Schema(description = "Số booking", example = "10")
         private Long bookingCount;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "Thống kê liên lạc")
+    public static class ContactStats {
+        @Schema(description = "Tổng số liên lạc", example = "50")
+        private Long totalContacts;
+
+        @Schema(description = "Số liên lạc chờ xử lý", example = "5")
+        private Long pendingContacts;
+
+        @Schema(description = "Số liên lạc đang xử lý", example = "10")
+        private Long processingContacts;
+
+        @Schema(description = "Số liên lạc đã giải quyết", example = "30")
+        private Long resolvedContacts;
+
+        @Schema(description = "Số liên lạc đã đóng", example = "5")
+        private Long closedContacts;
+
+        @Schema(description = "Tỷ lệ giải quyết (%)", example = "86.0")
+        private Double resolutionRate;
+
+        @Schema(description = "Liên lạc theo venue")
+        private List<ContactByVenue> contactsByVenue;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "Liên lạc theo venue")
+    public static class ContactByVenue {
+        @Schema(description = "ID venue", example = "1")
+        private Long venueId;
+
+        @Schema(description = "Tên venue", example = "Sân Cầu Lông Hà Nội")
+        private String venueName;
+
+        @Schema(description = "Số liên lạc", example = "15")
+        private Long contactCount;
+
+        @Schema(description = "Số liên lạc chờ xử lý", example = "3")
+        private Long pendingCount;
     }
 }
 

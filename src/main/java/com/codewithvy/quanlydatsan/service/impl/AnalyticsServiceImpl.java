@@ -30,6 +30,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private final BookingRepository bookingRepository;
     private final VenuesRepository venuesRepository;
+    private final com.codewithvy.quanlydatsan.repository.LienLacRepository lienLacRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -55,6 +56,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         // Tính insights
         Insights insights = calculateInsights(timeSlotStats, venuePerformance, revenueByDate);
 
+        // Tính thống kê liên lạc
+        ContactStats contactStats = calculateContactStats(ownerId, rangeStart, rangeEnd);
+
         return AnalyticsData.builder()
                 .period(period)
                 .startDate(rangeStart.atStartOfDay())
@@ -68,6 +72,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .timeSlotStats(timeSlotStats)
                 .paymentMethodStats(paymentMethodStats)
                 .insights(insights)
+                .contactStats(contactStats)
                 .build();
     }
 
@@ -98,6 +103,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
         Insights insights = calculateInsights(timeSlotStats, Collections.emptyList(), revenueByDate);
 
+        // Tính thống kê liên lạc cho venue
+        ContactStats contactStats = calculateContactStatsForVenue(venueId, rangeStart, rangeEnd);
+
         return AnalyticsData.builder()
                 .period(period)
                 .startDate(rangeStart.atStartOfDay())
@@ -111,6 +119,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .timeSlotStats(timeSlotStats)
                 .paymentMethodStats(paymentMethodStats)
                 .insights(insights)
+                .contactStats(contactStats)
                 .build();
     }
 
@@ -529,6 +538,109 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         return String.format("%02d/%02d - %02d/%02d",
                 start.getDayOfMonth(), start.getMonthValue(),
                 end.getDayOfMonth(), end.getMonthValue());
+    }
+
+    /**
+     * Tính toán thống kê liên lạc cho owner
+     */
+    private ContactStats calculateContactStats(Long ownerId, LocalDate startDate, LocalDate endDate) {
+        java.time.Instant startInstant = startDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+        java.time.Instant endInstant = endDate.atTime(LocalTime.MAX).atZone(java.time.ZoneId.systemDefault()).toInstant();
+
+        // Đếm tổng số liên lạc
+        long totalContacts = lienLacRepository.countByVenueOwnerIdAndCreatedAtBetween(
+                ownerId, startInstant, endInstant);
+
+        // Đếm theo trạng thái
+        long pendingContacts = lienLacRepository.countByVenueOwnerIdAndStatus(
+                ownerId, com.codewithvy.quanlydatsan.entity.LienLacStatus.PENDING);
+        long processingContacts = lienLacRepository.countByVenueOwnerIdAndStatus(
+                ownerId, com.codewithvy.quanlydatsan.entity.LienLacStatus.PROCESSING);
+        long resolvedContacts = lienLacRepository.countByVenueOwnerIdAndStatus(
+                ownerId, com.codewithvy.quanlydatsan.entity.LienLacStatus.RESOLVED);
+        long closedContacts = lienLacRepository.countByVenueOwnerIdAndStatus(
+                ownerId, com.codewithvy.quanlydatsan.entity.LienLacStatus.CLOSED);
+
+        // Tính tỷ lệ giải quyết
+        double resolutionRate = totalContacts > 0 
+                ? ((double) (resolvedContacts + closedContacts) / totalContacts) * 100.0 
+                : 0.0;
+
+        // Lấy thống kê theo venue
+        List<com.codewithvy.quanlydatsan.entity.Venues> venues = venuesRepository.findByOwnerId(ownerId);
+        List<ContactByVenue> contactsByVenue = venues.stream()
+                .map(venue -> {
+                    long count = lienLacRepository.countByVenueIdAndCreatedAtBetween(
+                            venue.getId(), startInstant, endInstant);
+                    long pending = lienLacRepository.countByVenueIdAndStatus(
+                            venue.getId(), com.codewithvy.quanlydatsan.entity.LienLacStatus.PENDING);
+                    return ContactByVenue.builder()
+                            .venueId(venue.getId())
+                            .venueName(venue.getName())
+                            .contactCount(count)
+                            .pendingCount(pending)
+                            .build();
+                })
+                .filter(c -> c.getContactCount() > 0)
+                .collect(Collectors.toList());
+
+        return ContactStats.builder()
+                .totalContacts(totalContacts)
+                .pendingContacts(pendingContacts)
+                .processingContacts(processingContacts)
+                .resolvedContacts(resolvedContacts)
+                .closedContacts(closedContacts)
+                .resolutionRate(Math.round(resolutionRate * 10.0) / 10.0)
+                .contactsByVenue(contactsByVenue)
+                .build();
+    }
+
+    /**
+     * Tính toán thống kê liên lạc cho một venue cụ thể
+     */
+    private ContactStats calculateContactStatsForVenue(Long venueId, LocalDate startDate, LocalDate endDate) {
+        java.time.Instant startInstant = startDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant();
+        java.time.Instant endInstant = endDate.atTime(LocalTime.MAX).atZone(java.time.ZoneId.systemDefault()).toInstant();
+
+        // Đếm tổng số liên lạc
+        long totalContacts = lienLacRepository.countByVenueIdAndCreatedAtBetween(
+                venueId, startInstant, endInstant);
+
+        // Đếm theo trạng thái
+        long pendingContacts = lienLacRepository.countByVenueIdAndStatus(
+                venueId, com.codewithvy.quanlydatsan.entity.LienLacStatus.PENDING);
+        long processingContacts = lienLacRepository.countByVenueIdAndStatus(
+                venueId, com.codewithvy.quanlydatsan.entity.LienLacStatus.PROCESSING);
+        long resolvedContacts = lienLacRepository.countByVenueIdAndStatus(
+                venueId, com.codewithvy.quanlydatsan.entity.LienLacStatus.RESOLVED);
+        long closedContacts = lienLacRepository.countByVenueIdAndStatus(
+                venueId, com.codewithvy.quanlydatsan.entity.LienLacStatus.CLOSED);
+
+        // Tính tỷ lệ giải quyết
+        double resolutionRate = totalContacts > 0 
+                ? ((double) (resolvedContacts + closedContacts) / totalContacts) * 100.0 
+                : 0.0;
+
+        // Lấy venue info
+        com.codewithvy.quanlydatsan.entity.Venues venue = venuesRepository.findById(venueId).orElse(null);
+        List<ContactByVenue> contactsByVenue = venue != null 
+                ? Collections.singletonList(ContactByVenue.builder()
+                        .venueId(venue.getId())
+                        .venueName(venue.getName())
+                        .contactCount(totalContacts)
+                        .pendingCount(pendingContacts)
+                        .build())
+                : Collections.emptyList();
+
+        return ContactStats.builder()
+                .totalContacts(totalContacts)
+                .pendingContacts(pendingContacts)
+                .processingContacts(processingContacts)
+                .resolvedContacts(resolvedContacts)
+                .closedContacts(closedContacts)
+                .resolutionRate(Math.round(resolutionRate * 10.0) / 10.0)
+                .contactsByVenue(contactsByVenue)
+                .build();
     }
 }
 
