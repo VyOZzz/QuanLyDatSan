@@ -4,8 +4,11 @@ import com.codewithvy.quanlydatsan.dto.AnalyticsDTO.*;
 import com.codewithvy.quanlydatsan.entity.Booking;
 import com.codewithvy.quanlydatsan.entity.BookingItem;
 import com.codewithvy.quanlydatsan.entity.BookingStatus;
+import com.codewithvy.quanlydatsan.entity.LienLacStatus;
+import com.codewithvy.quanlydatsan.entity.Venues;
 import com.codewithvy.quanlydatsan.exception.ResourceNotFoundException;
 import com.codewithvy.quanlydatsan.repository.BookingRepository;
+import com.codewithvy.quanlydatsan.repository.LienLacRepository;
 import com.codewithvy.quanlydatsan.repository.VenuesRepository;
 import com.codewithvy.quanlydatsan.service.AnalyticsService;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +33,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private final BookingRepository bookingRepository;
     private final VenuesRepository venuesRepository;
-    private final com.codewithvy.quanlydatsan.repository.LienLacRepository lienLacRepository;
+    private final LienLacRepository lienLacRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -553,13 +556,13 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
         // Đếm theo trạng thái
         long pendingContacts = lienLacRepository.countByVenueOwnerIdAndStatus(
-                ownerId, com.codewithvy.quanlydatsan.entity.LienLacStatus.PENDING);
+                ownerId, LienLacStatus.PENDING);
         long processingContacts = lienLacRepository.countByVenueOwnerIdAndStatus(
-                ownerId, com.codewithvy.quanlydatsan.entity.LienLacStatus.PROCESSING);
+                ownerId, LienLacStatus.PROCESSING);
         long resolvedContacts = lienLacRepository.countByVenueOwnerIdAndStatus(
-                ownerId, com.codewithvy.quanlydatsan.entity.LienLacStatus.RESOLVED);
+                ownerId, LienLacStatus.RESOLVED);
         long closedContacts = lienLacRepository.countByVenueOwnerIdAndStatus(
-                ownerId, com.codewithvy.quanlydatsan.entity.LienLacStatus.CLOSED);
+                ownerId, LienLacStatus.CLOSED);
 
         // Tính tỷ lệ giải quyết
         double resolutionRate = totalContacts > 0 
@@ -567,13 +570,13 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 : 0.0;
 
         // Lấy thống kê theo venue
-        List<com.codewithvy.quanlydatsan.entity.Venues> venues = venuesRepository.findByOwnerId(ownerId);
+        List<Venues> venues = venuesRepository.findByOwnerId(ownerId);
         List<ContactByVenue> contactsByVenue = venues.stream()
                 .map(venue -> {
                     long count = lienLacRepository.countByVenueIdAndCreatedAtBetween(
                             venue.getId(), startInstant, endInstant);
                     long pending = lienLacRepository.countByVenueIdAndStatus(
-                            venue.getId(), com.codewithvy.quanlydatsan.entity.LienLacStatus.PENDING);
+                            venue.getId(), LienLacStatus.PENDING);
                     return ContactByVenue.builder()
                             .venueId(venue.getId())
                             .venueName(venue.getName())
@@ -608,13 +611,13 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
         // Đếm theo trạng thái
         long pendingContacts = lienLacRepository.countByVenueIdAndStatus(
-                venueId, com.codewithvy.quanlydatsan.entity.LienLacStatus.PENDING);
+                venueId, LienLacStatus.PENDING);
         long processingContacts = lienLacRepository.countByVenueIdAndStatus(
-                venueId, com.codewithvy.quanlydatsan.entity.LienLacStatus.PROCESSING);
+                venueId, LienLacStatus.PROCESSING);
         long resolvedContacts = lienLacRepository.countByVenueIdAndStatus(
-                venueId, com.codewithvy.quanlydatsan.entity.LienLacStatus.RESOLVED);
+                venueId, LienLacStatus.RESOLVED);
         long closedContacts = lienLacRepository.countByVenueIdAndStatus(
-                venueId, com.codewithvy.quanlydatsan.entity.LienLacStatus.CLOSED);
+                venueId, LienLacStatus.CLOSED);
 
         // Tính tỷ lệ giải quyết
         double resolutionRate = totalContacts > 0 
@@ -622,7 +625,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 : 0.0;
 
         // Lấy venue info
-        com.codewithvy.quanlydatsan.entity.Venues venue = venuesRepository.findById(venueId).orElse(null);
+        Venues venue = venuesRepository.findById(venueId).orElse(null);
         List<ContactByVenue> contactsByVenue = venue != null 
                 ? Collections.singletonList(ContactByVenue.builder()
                         .venueId(venue.getId())
